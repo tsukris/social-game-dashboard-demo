@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>売上KPI構造マップ</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="graph-page">
+  <div class="app-shell">
+    <header class="topbar">
+      <button id="menuToggle" class="hamburger-button" type="button" aria-controls="graphSidebar" aria-expanded="false" aria-label="設定メニューを開く">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="brand">
+        <span class="brand__label">売上改善の全体像</span>
+        <div class="brand__row">
+          <h1 class="brand__title">売上KPI構造マップ</h1>
+          <div class="brand__guide" aria-label="このページの見方">
+            <strong>問いから探す構造図</strong>
+            <span>売上が落ちた時に、KGIから課金転換・単価・石消費・品質へ上から辿る。気になるノードをクリックして、前後の依存関係を確認する。</span>
+          </div>
+        </div>
+      </div>
+      <nav class="page-links" aria-label="ページ切り替え">
+        <a class="page-link is-active" href="kpi_dependency_graph.html">売上KPI構造マップ</a>
+        <a class="page-link" href="KPI_tree.txt">原本テキスト</a>
+      </nav>
+    </header>
+
+    <div id="menuBackdrop" class="menu-backdrop"></div>
+
+    <div class="graph-layout">
+      <aside id="graphSidebar" class="sidebar graph-sidebar" aria-label="グラフ設定">
+        <div class="drawer-head">
+          <strong>グラフ設定</strong>
+          <button id="menuClose" class="button" type="button">閉じる</button>
+        </div>
+        <section class="panel">
+          <div class="panel__body">
+            <h2 class="panel__title">検索</h2>
+            <input id="graphSearch" class="search-box" type="search" placeholder="例: ARPPU, rDAU, 石">
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__body">
+            <h2 class="panel__title">表示条件</h2>
+            <label class="toggle">
+              <input id="importantOnly" type="checkbox">
+              重要指標を中心に表示
+            </label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__body">
+            <h2 class="panel__title">補助情報</h2>
+            <div class="note">ノードにカーソルを合わせると、おすすめ分析軸だけをツールチップで確認できます。</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__body">
+            <h2 class="panel__title">Mermaid風定義</h2>
+            <pre id="mermaidCode" class="code-panel"></pre>
+          </div>
+        </section>
+      </aside>
+
+      <main class="main">
+        <section class="panel">
+          <div class="graph-stage-wrap">
+            <div class="axis-rail graph-axis-rail" aria-label="分析軸">
+              <span class="axis-rail__label">分析軸</span>
+              <button class="axis-chip" type="button" data-axis="time">時間</button>
+              <button class="axis-chip" type="button" data-axis="platform">プラットフォーム</button>
+              <button class="axis-chip" type="button" data-axis="user">ユーザー分類</button>
+              <button class="axis-chip" type="button" data-axis="item">販売物</button>
+              <button class="axis-chip" type="button" data-axis="compare">時間比較</button>
+            </div>
+            <div id="graphStage" class="graph-stage" aria-label="売上KPI構造マップ"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const graphData = {
+      views: [
+        {
+          id: "all",
+          label: "全体",
+          intent: "KGIから人数・課金・施策・品質・投資回収までの全体像を俯瞰し、どの論点から深掘りするか決める。",
+          scope: "売上、ユーザー数、課金率、ARPPU、LTV/CAC、石消費、施策効果、品質までを一枚で見る。"
+        },
+        {
+          id: "revenue",
+          label: "課金分析",
+          intent: "課金売上を伸ばすため、課金転換・ARPPU・LTV・販売物・石消費のどこに改善余地があるかを見る。",
+          scope: "課金率（DPU/rDAU）、ガチャ導線、商品導線、ARPPU、LTV、LTV/CAC、商品別売上、ガチャ別売上、石関連を中心に見る。"
+        },
+        {
+          id: "user",
+          label: "ユーザー",
+          intent: "ユーザー数の増減、定着、離脱、熱量低下のどこに問題があるかを見る。",
+          scope: "MAU、rMAU、DAU、rDAU、新規定着、継続率、既存顧客離脱、休眠復帰、熱量、満足度、品質を中心に見る。"
+        },
+        {
+          id: "monetization",
+          label: "課金導線",
+          intent: "商品・ガチャの訴求から購入まで、どこで落ちているかを導線単位で確認する。",
+          scope: "ガチャ導線、商品導線、商品ページクリック率、ガチャページクリック率、商品購入率、ガチャ購入率、ARPPU、LTV、購入単価、課金頻度を中心に見る。"
+        },
+        {
+          id: "campaign",
+          label: "施策/品質",
+          intent: "施策が売上・流入・復帰・満足度・投資回収に効いたか、品質悪化が継続や課金を邪魔していないかを見る。",
+          scope: "施策別売上、商品/ガチャ別売上、広告/自然流入、CAC、LTV/CAC、休眠復帰、SNS動向、満足度、クラッシュ率、読み込み時間を中心に見る。"
+        }
+      ],
+      nodes: [
+        { id: "kgi", label: "KGI: 売上", note: "最終成果", layer: 0, category: "root", important: true, views: ["all", "revenue", "user", "monetization", "campaign"] },
+
+        { id: "revenueBlock", label: "売上関連", note: "観測値と着地", layer: 1, category: "revenue", views: ["all", "revenue", "campaign"] },
+        { id: "activeBlock", label: "ユーザー数関連", note: "月次・日次の人数", layer: 1, category: "user", views: ["all", "user", "campaign"] },
+        { id: "payBlock", label: "課金関連", note: "率と単価", layer: 1, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "unitEconomicsBlock", label: "投資回収関連", note: "LTV/CACで判断", layer: 1, category: "campaign", important: true, views: ["all", "revenue", "user", "monetization", "campaign"] },
+
+        { id: "ltv", label: "LTV（顧客生涯価値）", note: "継続 × 課金価値", layer: 2, category: "monetization", important: true, views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "cac", label: "CAC（顧客獲得単価）", note: "広告費 ÷ 獲得顧客", layer: 2, category: "campaign", important: true, views: ["all", "user", "campaign"] },
+        { id: "ltvCacRatio", label: "LTV/CAC", note: "獲得投資の採算", layer: 3, category: "campaign", important: true, views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "paybackPeriod", label: "投資回収期間", note: "回収までの月数", layer: 4, category: "campaign", mark: "circle", views: ["all", "revenue", "campaign"] },
+        { id: "adSpend", label: "広告費", note: "媒体別投資額", layer: 4, category: "campaign", mark: "circle", views: ["all", "campaign"] },
+        { id: "arpu", label: "ARPU", note: "売上 ÷ Active", layer: 2, category: "revenue", mark: "circle", views: ["all"] },
+        { id: "forecastGap", label: "売上予測・目標差", note: "着地管理", layer: 2, category: "revenue", important: true, views: ["all"] },
+        { id: "campaignRevenue", label: "施策別売上", note: "施策評価", layer: 2, category: "campaign", mark: "circle", views: ["all", "revenue", "campaign"] },
+        { id: "productRevenue", label: "商品別売上", note: "商品別", layer: 3, category: "revenue", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "gachaRevenue", label: "ガチャ別売上", note: "ガチャ別", layer: 4, category: "revenue", important: true, views: ["all", "revenue", "monetization", "campaign"] },
+
+        { id: "mau", label: "MAU", note: "月次ログインUU", layer: 2, category: "user", mark: "circle", views: ["all", "user"] },
+        { id: "mmau", label: "rMAU", note: "月次ミッションUU", layer: 2, category: "user", important: true, views: ["all", "user"] },
+        { id: "dau", label: "DAU", note: "日次ログインUU", layer: 3, category: "user", mark: "circle", views: ["all", "user"] },
+        { id: "dmau", label: "rDAU", note: "日次ミッションUU", layer: 3, category: "user", important: true, views: ["all", "user"] },
+        { id: "dmauDau", label: "ログインユーザー率（DAU-rDAU/DAU）", note: "ログインのみ率", layer: 4, category: "user", mark: "circle", views: ["all", "user"] },
+        { id: "newRetention", label: "新規定着ユーザー数", note: "新規 × 定着", layer: 2, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "newUsers", label: "新規ユーザー数", note: "流入規模", layer: 3, category: "user", important: true, views: ["all", "user", "campaign"] },
+        { id: "adAcq", label: "広告由来流入数", note: "広告効果", layer: 4, category: "campaign", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "organicAcq", label: "自然流入数", note: "口コミ/SNS/検索", layer: 4, category: "campaign", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "retention", label: "新規定着率", note: "継続率", layer: 3, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "tutorialClear", label: "チュートリアル突破率", note: "初回体験", layer: 4, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "retentionRates", label: "D1 / D7 / D30継続率", note: "初日・序盤・中期定着", layer: 4, category: "user", important: true, views: ["all", "user", "campaign"] },
+        { id: "churn", label: "既存顧客離脱数", note: "既存減少", layer: 2, category: "user", important: true, views: ["all", "user", "campaign"] },
+        { id: "potentialChurn", label: "潜在離脱顧客数", note: "離脱予備軍", layer: 3, category: "user", important: true, views: ["all", "user", "campaign"] },
+        { id: "returning", label: "休眠復帰ユーザー数", note: "復帰施策", layer: 2, category: "campaign", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "engagement", label: "ユーザーの熱量関連", note: "活動量・反応", layer: 3, category: "user", views: ["all", "revenue", "user", "monetization", "campaign"] },
+        { id: "participationRate", label: "参加率", note: "クエスト/イベント", layer: 4, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "clearRate", label: "クリア率", note: "攻略進行", layer: 4, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "episodeViewRate", label: "エピソード閲覧率", note: "キャラ/親密度", layer: 4, category: "user", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "sns", label: "SNS動向", note: "話題化", layer: 4, category: "campaign", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "satisfaction", label: "ユーザー満足度関連", note: "満足/不満", layer: 3, category: "quality", views: ["all", "revenue", "user", "monetization", "campaign"] },
+        { id: "characterSatisfaction", label: "キャラ満足度", note: "キャラ評価", layer: 4, category: "quality", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "bedroomSatisfaction", label: "親密度エピソード満足度", note: "親密度評価", layer: 4, category: "quality", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "scenarioSatisfaction", label: "シナリオ満足度", note: "物語評価", layer: 4, category: "quality", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "gameSatisfaction", label: "ゲーム満足度", note: "遊び評価", layer: 4, category: "quality", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "productSatisfaction", label: "課金商品満足度", note: "価格/内容評価", layer: 4, category: "quality", mark: "circle", views: ["all", "user", "campaign"] },
+        { id: "quality", label: "技術品質関連", note: "体験悪化", layer: 3, category: "quality", views: ["all", "user", "campaign"] },
+        { id: "crashRate", label: "クラッシュ率", note: "重要品質", layer: 4, category: "quality", important: true, views: ["all", "user", "campaign"] },
+        { id: "loadTime", label: "平均読み込み時間", note: "重要品質", layer: 4, category: "quality", important: true, views: ["all", "user", "campaign"] },
+
+        { id: "payerRatio", label: "課金率（DPU/rDAU）", note: "課金者割合", layer: 2, category: "monetization", important: true, views: ["all", "revenue", "monetization"] },
+        { id: "dpu", label: "DPU", note: "課金UU", layer: 3, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "gachaFunnel", label: "ガチャ導線", note: "訴求から購入", layer: 2, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "productFunnel", label: "商品導線", note: "露出から購入", layer: 2, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "gachaCtr", label: "ガチャページクリック率", note: "ガチャ導線", layer: 3, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "productCtr", label: "商品ページクリック率", note: "商品導線", layer: 3, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "gachaPurchaseRate", label: "ガチャ購入率", note: "ガチャ到達後の購入", layer: 4, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "productPurchaseRate", label: "商品購入率", note: "商品到達後の購入", layer: 4, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+        { id: "arppu", label: "ARPPU", note: "課金者単価", layer: 2, category: "monetization", important: true, views: ["all", "revenue", "monetization"] },
+        { id: "purchaseUnit", label: "1回あたり購入単価", note: "購入単価", layer: 4, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "payFrequency", label: "課金頻度", note: "購入回数", layer: 4, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "payPotential", label: "課金ポテンシャル", note: "上限余地", layer: 2, category: "monetization", views: ["all", "revenue", "monetization"] },
+        { id: "stone", label: "石関連", note: "消費・保有・余力", layer: 2, category: "monetization", views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "stoneSpend", label: "石消費数", note: "GACHA_TOTAL_SPEND", layer: 3, category: "monetization", important: true, views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "paidStoneSpend", label: "有償石消費数", note: "GACHA_PAID_SPEND", layer: 4, category: "monetization", views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "freeStoneSpend", label: "無償石消費数", note: "GACHA_FREE_SPEND", layer: 4, category: "monetization", views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "gachaRuns", label: "ガチャ実行回数", note: "回転量", layer: 5, category: "monetization", views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "ceilingRate", label: "天井到達率", note: "強訴求/不満", layer: 5, category: "monetization", views: ["all", "revenue", "monetization", "campaign"] },
+        { id: "stoneHoldings", label: "石保有数", note: "次回余力", layer: 3, category: "monetization", mark: "circle", views: ["all", "revenue", "monetization"] },
+
+      ],
+      edges: [
+        ["kgi", "revenueBlock", "観測"],
+        ["kgi", "activeBlock", "人数"],
+        ["kgi", "payBlock", "単価/率"],
+        ["kgi", "unitEconomicsBlock", "投資"],
+
+        ["unitEconomicsBlock", "ltv", "価値"],
+        ["unitEconomicsBlock", "cac", "獲得"],
+        ["ltv", "ltvCacRatio", "回収"],
+        ["cac", "ltvCacRatio", "投資"],
+        ["ltvCacRatio", "paybackPeriod", "期間"],
+        ["cac", "adAcq", "獲得数"],
+        ["cac", "adSpend", "費用"],
+
+        ["revenueBlock", "arpu", ""],
+        ["revenueBlock", "forecastGap", ""],
+        ["revenueBlock", "campaignRevenue", ""],
+        ["campaignRevenue", "productRevenue", ""],
+        ["campaignRevenue", "gachaRevenue", ""],
+
+        ["activeBlock", "mau", ""],
+        ["activeBlock", "mmau", ""],
+        ["activeBlock", "newRetention", ""],
+        ["activeBlock", "churn", ""],
+        ["activeBlock", "returning", ""],
+        ["mau", "dau", ""],
+        ["mmau", "dmau", ""],
+        ["dau", "dmauDau", ""],
+        ["dmau", "dmauDau", ""],
+        ["newRetention", "newUsers", ""],
+        ["newRetention", "retention", ""],
+        ["newUsers", "adAcq", ""],
+        ["newUsers", "organicAcq", ""],
+        ["retention", "tutorialClear", ""],
+        ["retention", "retentionRates", ""],
+        ["churn", "potentialChurn", ""],
+        ["churn", "engagement", ""],
+        ["churn", "satisfaction", ""],
+        ["churn", "quality", ""],
+        ["engagement", "participationRate", ""],
+        ["engagement", "clearRate", ""],
+        ["engagement", "episodeViewRate", ""],
+        ["engagement", "sns", ""],
+        ["satisfaction", "characterSatisfaction", ""],
+        ["satisfaction", "bedroomSatisfaction", ""],
+        ["satisfaction", "scenarioSatisfaction", ""],
+        ["satisfaction", "gameSatisfaction", ""],
+        ["satisfaction", "productSatisfaction", ""],
+        ["quality", "crashRate", ""],
+        ["quality", "loadTime", ""],
+
+        ["payBlock", "payerRatio", ""],
+        ["payBlock", "gachaFunnel", ""],
+        ["payBlock", "productFunnel", ""],
+        ["payBlock", "arppu", ""],
+        ["payBlock", "payPotential", ""],
+        ["payBlock", "stone", ""],
+        ["payerRatio", "dpu", ""],
+        ["dpu", "engagement", ""],
+        ["dpu", "satisfaction", ""],
+        ["productRevenue", "productCtr", ""],
+        ["productRevenue", "productPurchaseRate", ""],
+        ["gachaRevenue", "gachaCtr", ""],
+        ["gachaRevenue", "gachaPurchaseRate", ""],
+        ["gachaRevenue", "gachaRuns", ""],
+        ["gachaRevenue", "ceilingRate", ""],
+        ["gachaFunnel", "gachaCtr", ""],
+        ["productFunnel", "productCtr", ""],
+        ["productCtr", "productPurchaseRate", ""],
+        ["gachaCtr", "gachaPurchaseRate", ""],
+        ["arppu", "purchaseUnit", ""],
+        ["arppu", "payFrequency", ""],
+        ["arppu", "engagement", ""],
+        ["arppu", "satisfaction", ""],
+        ["stone", "stoneSpend", ""],
+        ["stoneSpend", "paidStoneSpend", ""],
+        ["stoneSpend", "freeStoneSpend", ""],
+        ["stoneSpend", "gachaRevenue", ""],
+        ["stone", "gachaRuns", ""],
+        ["stone", "ceilingRate", ""],
+        ["stone", "stoneHoldings", ""]
+      ]
+    };
+
+    const nodeDescriptions = {
+      kgi: "最終成果。売上を起点に、人数・課金率・ARPPU・施策・品質へ分解して改善レバーを探す。",
+      revenueBlock: "売上関連。売上の観測値・着地予測・施策別売上・商品別売上・ガチャ別売上をまとめて見る。",
+      activeBlock: "ユーザー数関連。MAU / rMAU / DAU / rDAU / 新規定着 / 既存離脱 / 休眠復帰を分解する。",
+      payBlock: "課金関連。課金率（DPU/rDAU） / ガチャ導線 / 商品導線 / ARPPU / 課金ポテンシャル / 石関連を分解する。",
+      unitEconomicsBlock: "投資回収関連。LTV、CAC、LTV/CAC、投資回収期間をまとめ、広告・施策投資を増やすべきか判断する。",
+
+      ltv: "LTV（顧客生涯価値）。課金率、ARPPU、課金頻度、継続率、離脱率を合わせて、1人の顧客から将来どれだけ売上を回収できるかを見る。",
+      cac: "CAC（顧客獲得単価）。広告費 ÷ 獲得顧客数。媒体別の広告費、広告由来流入数、CTR、CVRと合わせて見る。",
+      ltvCacRatio: "LTV/CAC。顧客獲得にかけた投資が回収価値を上回っているかを見る。1倍未満なら獲得を増やす前に単価・継続・広告効率を見直す。",
+      paybackPeriod: "投資回収期間。CACを何か月分のLTVで回収できるかを見る。短いほど広告を強めやすい。",
+      adSpend: "広告費。媒体別・キャンペーン別の投資額。CAC、広告由来流入数、LTV/CACと合わせて見る。",
+
+      arpu: "売上 ÷ ユーザー数。売上変化が人数由来か、1人あたり価値由来かを切り分ける。",
+      forecastGap: "月末予測売上 / 現時点目標売上 / 月末目標売上 / 目標達成率 / 予測差額 / 予測更新日 / 予測対象期間。",
+      campaignRevenue: "施策別現時点売上 / 施策別予測売上 / 施策別予測差 / 販売カテゴリ別売上構成 / 商品別売上 / ガチャ別売上。",
+      productRevenue: "商品別売上。商品・パック・月額商品など、どの販売物が売上を作ったかを見る。",
+      gachaRevenue: "ガチャ別売上。ガチャ単位で売上を見て、石消費数・ガチャ実行回数・天井到達率と合わせる。",
+
+      mau: "MAU。月間のアクティブユーザー数。月次のユーザー規模を見る。",
+      mmau: "rMAU。マンスリーミッションクリアアクティブユーザー数。月次で実際に遊んだユーザー規模を見る。",
+      dau: "DAU。1日のアクティブユーザー数。MAUの下位として日次のログイン規模を見る。",
+      dmau: "rDAU。デイリーミッションクリアUU。rMAUの下位として、日次で実際に遊んだユーザー規模を見る。",
+      dmauDau: "ログインユーザー率（DAU-rDAU/DAU）。ログインしたがデイリーミッション未達の割合を見る。",
+      newRetention: "新規ユーザー数 × 新規定着率。新規流入が実際にrDAU増加へつながったかを見る。",
+      newUsers: "新規ユーザー数。広告由来流入数 / 自然流入数 / 新規プレイヤー1人あたり売上 / 年始比新規ユーザー数を含む。",
+      adAcq: "広告由来流入数。広告表示回数 / 広告クリック率CTR / インストール転換率CVR / 広告獲得単価CPI / CACで分解する。",
+      organicAcq: "自然流入数。SNS由来 / ストア検索由来 / コラボ由来 / 口コミ・外部コミュニティ由来 / 復帰キャンペーン由来。",
+      retention: "新規定着率。1Day定着率 / 7Day定着率 / 30Day定着率 / チュートリアル突破率で見る。",
+      tutorialClear: "チュートリアル突破率。新規ユーザーのうち、チュートリアルを突破した割合。初回体験の詰まりを見る。",
+      retentionRates: "D1 / D7 / D30継続率。初日・序盤・中期の定着をまとめて見て、新規が残るかを判断する。",
+      churn: "既存顧客離脱数。当日のユーザー数 - 新規ユーザー数 - 前日のユーザー数。",
+      potentialChurn: "潜在離脱顧客数。離脱する可能性のあるプレイヤーの人数。算出ロジックは仮置きの先行指標として扱う。",
+      returning: "休眠復帰ユーザー数。一定期間非アクティブだったが、再度アクティブ化したユーザー数。",
+      engagement: "ユーザーの熱量関連。参加率 / クリア率 / エピソード閲覧率 / SNS動向を見る。",
+      participationRate: "参加率。クエストやイベントなど、主要コンテンツに参加したユーザー割合を見る。",
+      clearRate: "クリア率。参加後にコンテンツをクリアできた割合を見て、難易度や詰まりを把握する。",
+      episodeViewRate: "エピソード閲覧率。個別エピソードや親密度エピソードが見られているかを見る。",
+      sns: "SNS動向。SNS投稿数 / 公式SNSポスト反応数 / 公式SNSポストエンゲージメント率 / SNSネガポジ分析。",
+      satisfaction: "ユーザー満足度関連。キャラ / 親密度 / シナリオ / ゲーム / 課金商品ごとの満足度を見る。",
+      characterSatisfaction: "キャラ満足度。キャラクター単位の魅力や評価を見る。",
+      bedroomSatisfaction: "親密度エピソード満足度。親密度エピソードの評価を見る。",
+      scenarioSatisfaction: "シナリオ満足度。物語やイベントシナリオの評価を見る。",
+      gameSatisfaction: "ゲーム満足度。対人 / レイド / ランキング戦など遊びの評価を見る。",
+      productSatisfaction: "課金商品満足度。価格・内容・お得感に対する満足度を見る。",
+      quality: "技術品質関連。クラッシュ率 / 平均読み込み時間を見て、継続率・課金率悪化の技術要因を補足する。",
+      crashRate: "クラッシュ率。端末・OS・アプリバージョン・プラットフォーム別に見て、離脱や低評価の要因を探す。",
+      loadTime: "平均読み込み時間。起動・画面遷移・ガチャ・バトルなど主要導線の待ち時間を測る。",
+
+      payerRatio: "課金率（DPU/rDAU）。デイリーミッションクリアUUのうち課金した割合。",
+      dpu: "DPU。課金UU。対象期間内に課金したユニークユーザー数。ユーザーの熱量関連や満足度関連とも合わせて見る。",
+      gachaFunnel: "ガチャ導線。ガチャページクリック率 / ガチャ購入率で、訴求から購入までの落ちどころを見る。",
+      productFunnel: "商品導線。商品ページクリック率 / 商品購入率で、露出から購入までの落ちどころを見る。",
+      productCtr: "商品ページクリック率。商品導線に入った割合。商品表示・訴求・配置の強さを見る。",
+      gachaCtr: "ガチャページクリック率。ガチャ導線に入った割合。バナー・告知・キャラ訴求の強さを見る。",
+      productPurchaseRate: "商品購入率。商品ページ到達者のうち、実際に商品を購入した割合。",
+      gachaPurchaseRate: "ガチャ購入率。ガチャページ到達者のうち、実際にガチャ購入した割合。",
+      arppu: "ARPPU。課金者1人あたり平均売上。1回あたり購入単価・課金頻度に加え、ユーザーの熱量関連・満足度関連も合わせて見る。",
+      purchaseUnit: "1回あたり購入単価。購入1回あたりの平均金額。商品価格帯や高単価商品の寄与を見る。",
+      payFrequency: "課金頻度。課金者あたりの購入回数。単価ではなく回数で売上が作れているかを見る。",
+      payPotential: "課金ポテンシャル。予想廃向け最大課金金額 / 有償販売物総量 / 新規ガチャ必要回転数総量を見る。",
+      stone: "石関連。石配布数 / 石収支 / 有償石消費 / 無償石消費 / 合計石消費 / ガチャ実行 / 天井 / 石保有数。",
+      stoneSpend: "石消費数。GACHA_TOTAL_SPEND。有償GACHA_PAID_SPENDと無償GACHA_FREE_SPENDを合わせて見る。",
+      paidStoneSpend: "有償石消費数。GACHA_PAID_SPEND。有償石でどれだけガチャが回ったかを見る。",
+      freeStoneSpend: "無償石消費数。GACHA_FREE_SPEND。配布石でどれだけガチャが回ったかを見る。",
+      gachaRuns: "ガチャ実行回数。対象期間にガチャが何回実行されたか。石消費数・ガチャ別売上と合わせる。",
+      ceilingRate: "天井到達率。強いガチャ訴求と不満リスクの両方を見る。SNSネガポジや満足度と合わせる。",
+      stoneHoldings: "石保有数。ユーザーが保持している石数を見て、次回消費や課金余地を把握する。"
+    };
+
+    graphData.nodes.forEach((node) => {
+      node.note = nodeDescriptions[node.id] || node.note;
+    });
+
+    const state = {
+      view: "all",
+      query: "",
+      importantOnly: false,
+      selectedId: null
+    };
+
+    const nodeById = new Map(graphData.nodes.map((node) => [node.id, node]));
+    const incoming = new Map();
+    const outgoing = new Map();
+    graphData.edges.forEach(([from, to, label]) => {
+      if (!outgoing.has(from)) outgoing.set(from, []);
+      if (!incoming.has(to)) incoming.set(to, []);
+      outgoing.get(from).push({ from, to, label });
+      incoming.get(to).push({ from, to, label });
+    });
+    const axisDescriptions = {
+      time: {
+        label: "時間",
+        description: "年 / 月 / 週 / 日 / 曜日 / 時間帯 / 月初・月中・月末 / イベント前・中・後 / 周年期 / コラボ期"
+      },
+      platform: {
+        label: "プラットフォーム",
+        description: "PCブラウザ / PCアプリ / スマホブラウザ / iOS / Google Play / プラットフォームD"
+      },
+      user: {
+        label: "ユーザー分類",
+        description: "課金状態 / プレイ継続期間 / プレイ頻度 / プレイ深度 / 攻略進捗 / キャラ資産 / ガチャ行動 / 施策反応 / 独自ユーザー分類 / リスク分類"
+      },
+      item: {
+        label: "販売物",
+        description: "ガチャ / 商品 / 月額パス / 石パック / 育成素材 / 衣装 / 復刻 / 限定"
+      },
+      compare: {
+        label: "時間比較",
+        description: "前日比 / 前週比 / 前月比 / 前年比 / 同日平均 / 直近12か月同日平均 / 目標比 / 予測比"
+      }
+    };
+    function normalize(value) {
+      return String(value || "").toLowerCase();
+    }
+
+    function nodeText(node) {
+      return normalize(`${node.label} ${node.note || ""} ${node.category}`);
+    }
+
+    function nodeMark(node) {
+      if (node.important) return "★";
+      if (node.mark === "circle") return "〇";
+      return "";
+    }
+
+    function isMarkedNode(node) {
+      return Boolean(node.important || node.mark === "circle");
+    }
+
+    function includeAncestors(id, set) {
+      (incoming.get(id) || []).forEach((edge) => {
+        if (!set.has(edge.from)) {
+          set.add(edge.from);
+          includeAncestors(edge.from, set);
+        }
+      });
+    }
+
+    function includeChildren(id, set) {
+      (outgoing.get(id) || []).forEach((edge) => {
+        set.add(edge.to);
+      });
+    }
+
+    function includeDescendants(id, set) {
+      (outgoing.get(id) || []).forEach((edge) => {
+        if (!set.has(edge.to)) {
+          set.add(edge.to);
+          includeDescendants(edge.to, set);
+        }
+      });
+    }
+
+    function getVisibleNodeIds() {
+      const base = new Set(
+        graphData.nodes
+          .filter((node) => node.views.includes(state.view))
+          .map((node) => node.id)
+      );
+
+      let visible = new Set(base);
+
+      if (state.importantOnly) {
+        visible = new Set(
+          [...visible].filter((id) => {
+            const node = nodeById.get(id);
+            return isMarkedNode(node) || node.layer <= 1;
+          })
+        );
+        [...visible].forEach((id) => includeAncestors(id, visible));
+      }
+
+      if (state.query) {
+        const matches = [...base].filter((id) => nodeText(nodeById.get(id)).includes(state.query));
+        visible = new Set();
+        matches.forEach((id) => {
+          visible.add(id);
+          includeAncestors(id, visible);
+          includeChildren(id, visible);
+        });
+      }
+
+      return visible;
+    }
+
+    function getVisibleEdges(visibleIds) {
+      return graphData.edges
+        .map(([from, to, label]) => ({ from, to, label }))
+        .filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to));
+    }
+
+    function relatedIds(selectedId) {
+      const related = new Set();
+      if (!selectedId) return related;
+      related.add(selectedId);
+      includeAncestors(selectedId, related);
+      includeDescendants(selectedId, related);
+      return related;
+    }
+
+    function activeRelatedIds() {
+      if (state.selectedId) return relatedIds(state.selectedId);
+      return new Set();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function wrapText(label, maxChars) {
+      const chunks = [];
+      let rest = label;
+      while (rest.length > maxChars) {
+        chunks.push(rest.slice(0, maxChars));
+        rest = rest.slice(maxChars);
+      }
+      chunks.push(rest);
+      return chunks;
+    }
+
+    function wrapNoteText(note, maxChars) {
+      return (String(note || "").match(/[^。]+。?/g) || [])
+        .flatMap((sentence) => wrapText(sentence.trim(), maxChars))
+        .filter(Boolean);
+    }
+
+    function nodeLines(node) {
+      const labelLines = wrapText(node.label, 13).slice(0, 2);
+      const noteLines = wrapNoteText(node.note || "", 18);
+      return { labelLines, noteLines };
+    }
+
+    function nodeHeight(node) {
+      const lines = nodeLines(node);
+      return Math.max(92, 18 + lines.labelLines.length * 17 + 7 + lines.noteLines.length * 14 + 12);
+    }
+
+    function resolveLayoutLayers(nodes, visibleEdges) {
+      const layers = new Map(nodes.map((node) => [node.id, node.layer]));
+      for (let pass = 0; pass < nodes.length; pass += 1) {
+        let changed = false;
+        visibleEdges.forEach((edge) => {
+          if (!layers.has(edge.from) || !layers.has(edge.to)) return;
+          const parentLayer = layers.get(edge.from);
+          const childLayer = layers.get(edge.to);
+          if (childLayer <= parentLayer) {
+            layers.set(edge.to, parentLayer + 1);
+            changed = true;
+          }
+        });
+        if (!changed) break;
+      }
+      return layers;
+    }
+
+    function buildLayout(visibleIds, visibleEdges) {
+      const nodes = [...visibleIds].map((id) => nodeById.get(id));
+      const layoutLayers = resolveLayoutLayers(nodes, visibleEdges);
+      const layers = new Map();
+      nodes.forEach((node) => {
+        const layer = layoutLayers.get(node.id) ?? node.layer;
+        if (!layers.has(layer)) layers.set(layer, []);
+        layers.get(layer).push(node);
+      });
+
+      const layerKeys = [...layers.keys()].sort((a, b) => a - b);
+      const stageWidth = Math.max(document.getElementById("graphStage").clientWidth || 0, 960);
+      const nodeWidth = 236;
+      const layerGap = 92;
+      const columnGap = 24;
+      const rowGap = 32;
+      const marginX = 42;
+      const marginY = 38;
+      const availableWidth = Math.max(stageWidth - marginX * 2, nodeWidth);
+      const maxPerRow = Math.max(1, Math.floor((availableWidth + columnGap) / (nodeWidth + columnGap)));
+      const positions = new Map();
+      let cursorY = marginY;
+
+      const sourceOrder = new Map(graphData.nodes.map((node, index) => [node.id, index]));
+
+      layerKeys.forEach((layer) => {
+        const parentCenter = (id) => {
+          const parentPositions = (incoming.get(id) || [])
+            .map((edge) => positions.get(edge.from))
+            .filter(Boolean);
+          if (!parentPositions.length) return Number.POSITIVE_INFINITY;
+          return parentPositions.reduce((sum, pos) => sum + pos.x + pos.width / 2, 0) / parentPositions.length;
+        };
+        const layerNodes = layers.get(layer).sort((a, b) => {
+          const aCenter = parentCenter(a.id);
+          const bCenter = parentCenter(b.id);
+          if (aCenter !== bCenter) {
+            if (!Number.isFinite(aCenter)) return 1;
+            if (!Number.isFinite(bCenter)) return -1;
+            return aCenter - bCenter;
+          }
+          return sourceOrder.get(a.id) - sourceOrder.get(b.id);
+        });
+        const rows = [];
+        for (let index = 0; index < layerNodes.length; index += maxPerRow) {
+          rows.push(layerNodes.slice(index, index + maxPerRow));
+        }
+
+        rows.forEach((row, rowIndex) => {
+          const rowWidth = row.length * nodeWidth + Math.max(row.length - 1, 0) * columnGap;
+          const offsetX = marginX + Math.max((availableWidth - rowWidth) / 2, 0);
+          const rowHeight = Math.max(...row.map((node) => nodeHeight(node)));
+          row.forEach((node, columnIndex) => {
+            const height = nodeHeight(node);
+            positions.set(node.id, {
+              x: offsetX + columnIndex * (nodeWidth + columnGap),
+              y: cursorY,
+              width: nodeWidth,
+              height
+            });
+          });
+          cursorY += rowHeight + rowGap;
+        });
+
+        cursorY += layerGap - rowGap;
+      });
+
+      return {
+        positions,
+        width: stageWidth,
+        height: Math.max(cursorY + marginY - layerGap, 520)
+      };
+    }
+
+    function renderGraph() {
+      const visibleIds = getVisibleNodeIds();
+      const visibleEdges = getVisibleEdges(visibleIds);
+      const stage = document.getElementById("graphStage");
+
+      if (!visibleIds.size) {
+        stage.innerHTML = '<div class="graph-empty">条件に合う依存関係がありません。</div>';
+        return;
+      }
+
+      const layout = buildLayout(visibleIds, visibleEdges);
+      const related = activeRelatedIds();
+      const hasFocus = Boolean(state.selectedId);
+
+      const edgeHtml = visibleEdges.map((edge) => {
+        const from = layout.positions.get(edge.from);
+        const to = layout.positions.get(edge.to);
+        if (!from || !to) return "";
+        const x1 = from.x + from.width / 2;
+        const y1 = from.y + from.height;
+        const x2 = to.x + to.width / 2;
+        const y2 = to.y;
+        const verticalGap = Math.max(42, Math.abs(y2 - y1) * 0.45);
+        const c1 = y1 + verticalGap;
+        const c2 = y2 - verticalGap;
+        const labelX = (x1 + x2) / 2;
+        const labelY = (y1 + y2) / 2 - 8;
+        const isRelated = hasFocus && related.has(edge.from) && related.has(edge.to);
+        const relatedClass = isRelated ? " is-related" : "";
+        const dimClass = hasFocus && !isRelated ? " is-dim" : "";
+        return `
+          <path class="graph-edge${relatedClass}${dimClass}" d="M ${x1} ${y1} C ${x1} ${c1}, ${x2} ${c2}, ${x2} ${y2}" marker-end="url(#arrow)"></path>
+          ${edge.label ? `<text class="graph-edge-label${relatedClass}${dimClass}" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(edge.label)}</text>` : ""}
+        `;
+      }).join("");
+
+      const nodeHtml = [...visibleIds].map((id) => {
+        const node = nodeById.get(id);
+        const pos = layout.positions.get(id);
+        const lines = nodeLines(node);
+        const match = state.query && nodeText(node).includes(state.query) ? " is-match" : "";
+        const selected = state.selectedId === id ? " is-selected" : "";
+        const relatedClass = hasFocus && related.has(id) ? " is-related" : "";
+        const dimClass = hasFocus && !related.has(id) ? " is-dim" : "";
+        const labelY = pos.y + 23;
+        const noteY = labelY + lines.labelLines.length * 17 + 7;
+        const labelLines = lines.labelLines.map((line, index) => {
+          return `<text x="${pos.x + 12}" y="${labelY + index * 17}">${escapeHtml(line)}</text>`;
+        }).join("");
+        const noteLines = lines.noteLines.map((line, index) => {
+          return `<text class="node-note" x="${pos.x + 12}" y="${noteY + index * 14}">${escapeHtml(line)}</text>`;
+        }).join("");
+        const mark = nodeMark(node);
+        const markX = pos.x + pos.width - 22;
+        const markHtml = mark ? `<text class="node-mark" data-mark="${mark}" x="${markX}" y="${pos.y + 21}" text-anchor="middle">${mark}</text>` : "";
+        return `
+          <g class="graph-node${match}${selected}${relatedClass}${dimClass}" data-id="${node.id}" data-category="${node.category}" role="button" tabindex="0">
+            <rect x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${pos.height}" rx="8"></rect>
+            ${labelLines}
+            ${noteLines}
+            ${markHtml}
+          </g>
+        `;
+      }).join("");
+
+      stage.innerHTML = `
+        <svg class="graph-svg" viewBox="0 0 ${layout.width} ${layout.height}" width="100%" height="${layout.height}" aria-label="KPI dependency graph">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa7b3"></path>
+            </marker>
+          </defs>
+          ${edgeHtml}
+          ${nodeHtml}
+        </svg>
+      `;
+
+      stage.querySelectorAll(".graph-node").forEach((nodeEl) => {
+        nodeEl.addEventListener("click", () => {
+          state.selectedId = nodeEl.dataset.id;
+          render();
+        });
+        nodeEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            state.selectedId = nodeEl.dataset.id;
+            render();
+          }
+        });
+      });
+    }
+
+    function renderMermaidCode() {
+      const visibleIds = getVisibleNodeIds();
+      const visibleEdges = getVisibleEdges(visibleIds);
+      const nodes = [...visibleIds].map((id) => nodeById.get(id));
+      const lines = ["flowchart TD"];
+      nodes.forEach((node) => {
+        const note = (node.note || "").replaceAll('"', "'");
+        lines.push(`  ${node.id}["${nodeMark(node)}${node.label}<br/>${note}"]`);
+      });
+      visibleEdges.forEach((edge) => {
+        const label = edge.label ? `|${edge.label}|` : "";
+        lines.push(`  ${edge.from} -->${label} ${edge.to}`);
+      });
+      document.getElementById("mermaidCode").textContent = lines.join("\n");
+    }
+
+    function ensureAxisPopover() {
+      let popover = document.getElementById("axisPopover");
+      if (!popover) {
+        popover = document.createElement("div");
+        popover.id = "axisPopover";
+        popover.className = "axis-popover";
+        popover.hidden = true;
+        document.body.appendChild(popover);
+      }
+      return popover;
+    }
+
+    function hideAxisPopover() {
+      const popover = ensureAxisPopover();
+      popover.hidden = true;
+      popover.innerHTML = "";
+      document.querySelectorAll("[data-axis]").forEach((button) => button.classList.remove("is-active"));
+    }
+
+    function showAxisPopover(axisId, anchor) {
+      const axis = axisDescriptions[axisId];
+      const popover = ensureAxisPopover();
+      if (!axis) return;
+      const activeButton = document.querySelector(`[data-axis="${axisId}"]`);
+      const alreadyOpen = !popover.hidden && activeButton && activeButton.classList.contains("is-active");
+      if (alreadyOpen) {
+        hideAxisPopover();
+        return;
+      }
+      document.querySelectorAll("[data-axis]").forEach((button) => button.classList.toggle("is-active", button.dataset.axis === axisId));
+      popover.hidden = false;
+      popover.innerHTML = `
+        <strong>${escapeHtml(axis.label)}</strong>
+        <span>${escapeHtml(axis.description)}</span>
+      `;
+      const anchorRect = anchor.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      const viewportPadding = 12;
+      const left = Math.min(
+        Math.max(anchorRect.left, viewportPadding),
+        window.innerWidth - popoverRect.width - viewportPadding
+      );
+      const top = anchorRect.bottom + 8;
+      popover.style.left = `${left}px`;
+      popover.style.top = `${top}px`;
+    }
+
+    function render() {
+      renderGraph();
+      renderMermaidCode();
+    }
+
+    document.getElementById("graphSearch").addEventListener("input", (event) => {
+      state.query = normalize(event.target.value.trim());
+      state.selectedId = null;
+      render();
+    });
+
+    document.getElementById("importantOnly").addEventListener("change", (event) => {
+      state.importantOnly = event.target.checked;
+      state.selectedId = null;
+      render();
+    });
+
+    document.getElementById("graphStage").addEventListener("click", (event) => {
+      if (event.target.closest(".graph-node")) return;
+      if (!state.selectedId) return;
+      state.selectedId = null;
+      render();
+    });
+
+    document.querySelectorAll("[data-axis]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        showAxisPopover(button.dataset.axis, button);
+      });
+    });
+
+    const menuToggle = document.getElementById("menuToggle");
+    const menuClose = document.getElementById("menuClose");
+    const menuBackdrop = document.getElementById("menuBackdrop");
+
+    function setMenuOpen(open) {
+      document.body.classList.toggle("menu-open", open);
+      menuToggle.setAttribute("aria-expanded", String(open));
+      menuToggle.setAttribute("aria-label", open ? "設定メニューを閉じる" : "設定メニューを開く");
+    }
+
+    menuToggle.addEventListener("click", () => {
+      setMenuOpen(!document.body.classList.contains("menu-open"));
+    });
+
+    menuClose.addEventListener("click", () => setMenuOpen(false));
+    menuBackdrop.addEventListener("click", () => setMenuOpen(false));
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        hideAxisPopover();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const popover = ensureAxisPopover();
+      if (popover.hidden) return;
+      if (event.target.closest(".axis-rail") || event.target.closest("#axisPopover")) return;
+      hideAxisPopover();
+    });
+
+    window.addEventListener("resize", () => {
+      renderGraph();
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,3969 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ゲーム状況サマリー</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --paper: rgba(255, 255, 255, 0.88);
+      --paper-strong: rgba(255, 255, 255, 0.96);
+      --ink: #162033;
+      --muted: #63708a;
+      --line: rgba(22, 32, 51, 0.1);
+      --shadow: 0 20px 48px rgba(19, 31, 55, 0.12);
+      --nav: #1d2d56;
+      --blue: #356cff;
+      --blue-deep: #234bba;
+      --blue-soft-line: rgba(53, 108, 255, 0.42);
+      --blue-soft: rgba(53, 108, 255, 0.16);
+      --green: #3f8a4d;
+      --green-soft: rgba(63, 138, 77, 0.14);
+      --red: #c44d5c;
+      --red-soft: rgba(196, 77, 92, 0.14);
+      --font-sans: "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif;
+      --font-number: var(--font-sans);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      background: var(--bg);
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .page {
+      position: relative;
+      z-index: 2;
+      padding: 14px 24px 44px;
+      min-width: 0;
+    }
+    .head,
+    .page-head {
+      position: relative;
+      z-index: 5000;
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .title-block {
+      display: grid;
+      gap: 0;
+      min-width: 0;
+    }
+    .title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    h1 {
+      margin: 0;
+      font: 700 clamp(24px, 2vw, 30px) var(--font-sans);
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .head-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      min-width: 0;
+      gap: 8px;
+    }
+    .head-side {
+      grid-column: auto;
+      display: flex;
+      justify-content: flex-end;
+      justify-items: end;
+      align-items: center;
+      min-width: 0;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .period-control {
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+    }
+    .condition-bar {
+      align-items: center;
+    }
+    .summary-segment-control,
+    .condition-object {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 5px 7px 5px 14px;
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .control-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .toggle-group {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      gap: 2px;
+      padding: 2px;
+      border-radius: 999px;
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .toggle-button {
+      min-height: 28px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: 800 11px/1 var(--font-sans);
+      padding: 7px 9px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .toggle-button.is-active {
+      background: var(--nav);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(29, 45, 86, 0.18);
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .chip strong {
+      flex: 0 0 auto;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .period-range-chip {
+      flex-wrap: nowrap;
+      gap: 6px;
+      padding: 5px 7px 5px 14px;
+    }
+    .period-date-text {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      min-height: 28px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .period-separator {
+      color: var(--muted);
+    }
+    .alert-strip,
+    .hero,
+    .signal-grid,
+    .guide-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .alert-strip {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+    .hero {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      margin-bottom: 12px;
+    }
+    .hero > .panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .signal-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .guide-grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    }
+    .card,
+    .panel,
+    .guide {
+      background: var(--paper);
+      border: 1px solid rgba(255, 255, 255, 0.46);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .card,
+    .guide {
+      padding: 18px;
+    }
+    .panel {
+      padding: 16px 20px 20px;
+    }
+    .card {
+      display: grid;
+      gap: 8px;
+    }
+    .signal-card {
+      padding: 16px 16px 14px;
+      min-height: 0;
+    }
+    .signal-card .card-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: stretch;
+      min-height: 132px;
+    }
+    .signal-card .info {
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      min-width: 0;
+    }
+    .signal-card .chart-side {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      align-self: stretch;
+      align-content: stretch;
+      min-width: 0;
+      height: 100%;
+    }
+    .signal-card .value {
+      font-size: 30px;
+    }
+    .signal-card .sub {
+      font-size: 13px;
+    }
+    .card .label,
+    .guide .label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .signal-card .label {
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .card .value {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .card .sub,
+    .panel .sub,
+    .guide li,
+    .guide p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 0;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      align-items: start;
+    }
+    .panel-title-row {
+      min-width: 0;
+    }
+    .title-metric-row {
+      display: grid;
+      gap: 4px;
+    }
+    .revenue-panel .title-metric-row {
+      grid-template-columns: max-content minmax(260px, 1fr);
+      grid-template-areas:
+        "title comment"
+        "metric comment";
+      column-gap: 28px;
+      align-items: start;
+    }
+    .dmau-panel .title-metric-row {
+      grid-template-columns: max-content minmax(260px, 1fr);
+      grid-template-areas:
+        "title comment"
+        "metric comment";
+      column-gap: 28px;
+      align-items: start;
+    }
+    .panel-title {
+      margin: 4px 0 0;
+      font: 700 20px var(--font-sans);
+      letter-spacing: -0.02em;
+    }
+    .panel-title-row .sub {
+      max-width: 720px;
+      text-align: left;
+    }
+    .revenue-panel .panel-title-row .sub {
+      grid-area: comment;
+      align-self: center;
+      max-width: none;
+    }
+    .dmau-panel .panel-title-row .sub {
+      grid-area: comment;
+      align-self: center;
+      max-width: none;
+    }
+    .revenue-panel .panel-title-row .sub,
+    .dmau-panel .panel-title-row .sub {
+      min-height: 58px;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .metric-main {
+      display: grid;
+      gap: 2px;
+      align-content: start;
+      justify-items: end;
+      flex: 0 0 auto;
+      text-align: right;
+    }
+    .metric-main .metric-label {
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+    .metric-main .metric-label:empty {
+      display: none;
+    }
+    .metric-main .value {
+      font-size: clamp(34px, 3.2vw, 48px);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 0.98;
+    }
+    .metric-main .hint {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      line-height: 1.45;
+    }
+    .revenue-panel .metric-main {
+      grid-area: metric;
+      display: grid;
+      gap: 1px;
+      justify-items: start;
+      text-align: left;
+    }
+    .dmau-panel .metric-main {
+      grid-area: metric;
+      gap: 1px;
+      justify-items: start;
+      text-align: left;
+    }
+    .revenue-panel .metric-main .value,
+    .dmau-panel .metric-main .value,
+    .revenue-panel .metric-main .hint {
+      color: var(--ink);
+      font: 700 30px/1 var(--font-sans);
+      letter-spacing: -0.02em;
+    }
+    .revenue-panel .panel-title {
+      grid-area: title;
+      margin: 0;
+      color: var(--ink);
+      font: 800 14px/1.25 var(--font-sans);
+    }
+    .dmau-panel .panel-title {
+      grid-area: title;
+      margin: 0;
+      color: var(--ink);
+      font: 800 14px/1.25 var(--font-sans);
+    }
+    .dmau-panel .metric-main .hint {
+      color: var(--muted);
+      font: 700 13px/1.45 var(--font-sans);
+    }
+    .revenue-panel .metric-main .hint {
+      color: var(--muted);
+      font: 700 13px/1.45 var(--font-sans);
+    }
+    .delta-row,
+    .tag-row,
+    .mini-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .delta-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+    .mini-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+    .delta,
+    .mini {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--paper);
+      border: 1px solid rgba(255, 255, 255, 0.46);
+    }
+    .delta,
+    .dmau-card {
+      min-height: 76px;
+      display: grid;
+      align-content: start;
+      gap: 3px;
+      padding: 10px 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(22, 32, 51, 0.18);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+    }
+    .delta strong,
+    .mini strong,
+    .dmau-card small {
+      display: block;
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .delta strong {
+      white-space: nowrap;
+    }
+    .delta-meta,
+    .dmau-card small.subtle {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .delta span,
+    .mini span,
+    .dmau-card .meta {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 700;
+    }
+    .delta span {
+      margin-top: 0;
+    }
+    .delta span.is-green {
+      color: var(--green);
+    }
+    .delta span.is-red {
+      color: var(--red);
+    }
+    .dmau-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0 14px;
+    }
+    .dmau-card .meta.is-green {
+      color: var(--green);
+    }
+    .dmau-card .meta.is-red {
+      color: var(--red);
+    }
+    .chart {
+      width: 100%;
+      height: 260px;
+      margin-top: 10px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.66), rgba(255,255,255,0.36)),
+        rgba(255,255,255,0.42);
+      border: 1px solid rgba(22, 32, 51, 0.06);
+      padding: 10px;
+    }
+    .chart.seamless {
+      margin-top: 6px;
+      border: none;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+    }
+    .chart-stack {
+      display: grid;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .chart-block {
+      display: grid;
+      gap: 8px;
+    }
+    .chart-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .sublegend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .sublegend span {
+      display: inline-flex;
+      align-items: center;
+    }
+    .sublegend i {
+      display: inline-block;
+      margin-right: 6px;
+      flex: 0 0 auto;
+    }
+    .sublegend i.line {
+      width: 16px;
+      height: 0;
+      border-top: 3px solid currentColor;
+    }
+    .sublegend i.bar {
+      width: 8px;
+      height: 12px;
+      border-radius: 2px;
+    }
+    .chart-split {
+      width: 100%;
+      height: 152px;
+    }
+    .spark {
+      width: 100%;
+      height: 100%;
+      min-height: 96px;
+    }
+    .spark-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      padding: 0 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+    .value.is-alert {
+      color: var(--red);
+    }
+    .sns-balance {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 1.5;
+      font-weight: 700;
+    }
+    .signal-card.is-sns .sub {
+      line-height: 1.35;
+    }
+    .signal-card.is-sns .sns-meta {
+      display: grid;
+      gap: 1px;
+      margin-top: 0;
+    }
+    .signal-card.is-sns .sns-balance {
+      margin-top: 0;
+      line-height: 1.25;
+    }
+    .signal-card.is-sns .signal-note {
+      margin-top: 12px;
+    }
+    .sns-balance .pos {
+      color: var(--green);
+    }
+    .sns-balance .neg {
+      color: var(--red);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      column-gap: 14px;
+      row-gap: 3px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 14px;
+      height: 32px;
+      align-content: center;
+      align-items: center;
+    }
+    .delta-row + .legend {
+      margin-top: 10px;
+    }
+    .legend.center {
+      justify-content: center;
+    }
+    .legend:empty {
+      display: none;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+    }
+    .legend-break {
+      flex-basis: 100%;
+      height: 0;
+    }
+    .legend i {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+    .legend i.line {
+      width: 16px;
+      height: 0;
+      border-radius: 0;
+      border-top: 3px solid currentColor;
+      background: transparent !important;
+    }
+    .legend i.line.is-dashed {
+      border-top-style: dashed;
+      opacity: 0.72;
+    }
+    .legend i.bar {
+      width: 8px;
+      height: 12px;
+      border-radius: 2px;
+    }
+    .chart-note,
+    .signal-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .signal-note {
+      margin-top: 8px;
+      font-size: 11px;
+    }
+    .chart-note strong,
+    .signal-note strong {
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .chart-tooltip {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100000;
+      max-width: 220px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(22, 32, 51, 0.94);
+      color: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 16px 32px rgba(19, 31, 55, 0.24);
+      font-size: 12px;
+      line-height: 1.5;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate3d(0, 0, 0);
+      white-space: nowrap;
+    }
+    .chart-tooltip.is-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .chart-tooltip div + div {
+      margin-top: 2px;
+    }
+    .guide h3 {
+      margin: 6px 0 10px;
+      font: 700 18px var(--font-sans);
+      letter-spacing: -0.02em;
+    }
+    .guide ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .guide li + li {
+      margin-top: 6px;
+    }
+    .footnote {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    @media (max-width: 1280px) {
+      .alert-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .signal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .guide-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1024px) {
+      .app { grid-template-columns: 1fr; }
+      .side {
+        min-height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(22, 32, 51, 0.08);
+      }
+      .hero,
+      .alert-strip { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .page { padding: 18px 14px 36px; }
+      .head,
+      .page-head {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+      .head-actions,
+      .control-row {
+        justify-items: start;
+        justify-content: flex-start;
+      }
+      .panel-head { flex-direction: column; }
+      .metric-main { justify-items: start; text-align: left; }
+      .panel-title-row .sub { text-align: left; }
+      .signal-grid,
+      .delta-row,
+      .mini-grid,
+      .alert-strip { grid-template-columns: 1fr; }
+      .dmau-summary { grid-template-columns: 1fr; }
+      .signal-card .card-body { grid-template-columns: 1fr; }
+      .chips { justify-content: flex-start; }
+      .chart { height: 220px; }
+    }
+    .tooltip-mode .head {
+      margin-bottom: 8px;
+    }
+    .tooltip-mode {
+      overflow-x: hidden;
+    }
+    .tooltip-mode .page {
+      overflow: visible;
+      z-index: 100;
+    }
+    .tooltip-mode .lead {
+      max-width: 820px;
+    }
+    .tooltip-mode .panel {
+      padding: 18px 22px 22px;
+      border-color: rgba(255, 255, 255, 0.58);
+    }
+    .tooltip-mode .hero {
+      gap: 12px;
+    }
+    .tooltip-mode .hero > .panel {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(190px, 0.62fr) minmax(320px, 1.38fr);
+      grid-template-areas:
+        "head metrics"
+        "legend legend"
+        "chart chart";
+      grid-template-rows: auto auto minmax(0, 1fr);
+      align-content: start;
+      row-gap: 12px;
+      column-gap: 18px;
+      height: 100%;
+    }
+    .tooltip-mode .hero > .panel > .panel-head {
+      grid-area: head;
+      margin: 0;
+      align-self: start;
+    }
+    .tooltip-mode .hero > .panel > .delta-row,
+    .tooltip-mode .hero > .panel > .dmau-summary {
+      grid-area: metrics;
+      align-self: start;
+      margin: 0;
+    }
+    .tooltip-mode .hero > .panel > .legend {
+      grid-area: legend;
+    }
+    .tooltip-mode .hero > .panel > .chart {
+      grid-area: chart;
+      height: 255px;
+      min-height: 0;
+    }
+    .tooltip-mode .revenue-panel .title-metric-row,
+    .tooltip-mode .dmau-panel .title-metric-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "title comment"
+        "metric metric";
+      column-gap: 10px;
+      row-gap: 6px;
+      align-items: start;
+    }
+    .tooltip-mode .revenue-panel .panel-title,
+    .tooltip-mode .dmau-panel .panel-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+    }
+    .tooltip-mode .revenue-panel .panel-title-row .sub,
+    .tooltip-mode .dmau-panel .panel-title-row .sub {
+      display: flex;
+      justify-content: flex-start;
+      align-self: start;
+      min-height: 0;
+      max-width: none;
+      line-height: 1;
+      font-size: 0;
+    }
+    .tooltip-mode .revenue-panel .metric-main,
+    .tooltip-mode .dmau-panel .metric-main {
+      margin-top: 0;
+    }
+    .tooltip-mode .delta-row,
+    .tooltip-mode .dmau-summary {
+      gap: 12px;
+    }
+    .tooltip-mode .delta,
+    .tooltip-mode .dmau-card {
+      min-height: 76px;
+      padding: 11px 16px;
+    }
+    .tooltip-mode .legend {
+      margin-top: 2px;
+    }
+    .tooltip-mode .chart.seamless {
+      margin-top: 2px;
+    }
+    .tooltip-mode .signal-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .tooltip-mode .signal-card {
+      position: relative;
+      padding: 16px 18px;
+      border-color: rgba(255, 255, 255, 0.58);
+    }
+    .tooltip-mode .hero > .panel:has(.insight-tip:hover),
+    .tooltip-mode .hero > .panel:has(.insight-tip:focus-within),
+    .tooltip-mode .signal-card:has(.insight-tip:hover),
+    .tooltip-mode .signal-card:has(.insight-tip:focus-within) {
+      z-index: 5000;
+    }
+    .tooltip-mode .signal-card .card-body {
+      grid-template-columns: minmax(118px, 0.46fr) minmax(0, 0.54fr);
+      gap: 12px;
+      min-height: 116px;
+      align-items: center;
+    }
+    .tooltip-mode .signal-card .info {
+      gap: 5px;
+    }
+    .tooltip-mode .signal-card .chart-side {
+      align-self: center;
+      height: 86px;
+    }
+    .tooltip-mode .signal-card .value {
+      font-size: 28px;
+    }
+    .tooltip-mode .signal-card .sub {
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .tooltip-mode .spark {
+      min-height: 60px;
+    }
+    .tooltip-mode .spark-meta {
+      margin-top: 3px;
+    }
+    .tooltip-mode .event-list-panel {
+      display: grid;
+      gap: 12px;
+      margin-top: 2px;
+      padding: 18px;
+      border-radius: 28px;
+      background: var(--paper);
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .tooltip-mode .annual-event-panel {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      margin-top: 2px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+    .tooltip-mode .event-list-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .tooltip-mode .event-list-title {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font: 800 16px/1.25 var(--font-sans);
+      letter-spacing: -0.02em;
+    }
+    .tooltip-mode .event-list-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+    .tooltip-mode .event-list-count {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .tooltip-mode .initiative-filter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.46);
+      border: 1px solid rgba(22, 32, 51, 0.07);
+    }
+    .tooltip-mode .initiative-filter-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tooltip-mode .initiative-filter-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .tooltip-mode .initiative-filter-select {
+      min-width: 116px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(22, 32, 51, 0.10);
+      background: rgba(255, 255, 255, 0.80);
+      color: var(--ink);
+      font: 800 12px/1 var(--font-sans);
+    }
+    .tooltip-mode .initiative-header-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+    .tooltip-mode .initiative-header-button {
+      width: 100%;
+      min-width: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 900 10.5px/1.15 var(--font-sans);
+      cursor: pointer;
+      text-align: left;
+    }
+    .tooltip-mode .initiative-filter-state {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+    }
+    .tooltip-mode .initiative-filter-caret {
+      margin-left: auto;
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .tooltip-mode .initiative-search-mark {
+      position: relative;
+      flex: 0 0 auto;
+      width: 13px;
+      height: 13px;
+      border: 2px solid currentColor;
+      border-radius: 999px;
+      opacity: 0.72;
+    }
+    .tooltip-mode .initiative-search-mark::after {
+      content: "";
+      position: absolute;
+      right: -5px;
+      bottom: -4px;
+      width: 7px;
+      height: 2px;
+      border-radius: 999px;
+      background: currentColor;
+      transform: rotate(45deg);
+    }
+    .tooltip-mode .initiative-header-cell.is-filtered .initiative-header-button {
+      color: #356cff;
+    }
+    .tooltip-mode .initiative-header-cell.is-filtered .initiative-filter-state {
+      color: #356cff;
+    }
+    .tooltip-mode .initiative-filter-popover {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 20;
+      display: none;
+      min-width: 178px;
+      max-width: 230px;
+      padding: 10px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(22, 32, 51, 0.10);
+      box-shadow: 0 18px 36px rgba(19, 31, 55, 0.16);
+    }
+    .tooltip-mode .initiative-header-cell:nth-child(3) .initiative-filter-popover {
+      right: 0;
+      left: auto;
+    }
+    .tooltip-mode .initiative-header-cell.is-open .initiative-filter-popover {
+      display: grid;
+      gap: 8px;
+    }
+    .tooltip-mode .initiative-filter-input {
+      width: 100%;
+      min-width: 0;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(22, 32, 51, 0.10);
+      background: rgba(245, 248, 255, 0.92);
+      color: var(--ink);
+      font: 800 12px/1 var(--font-sans);
+      outline: none;
+    }
+    .tooltip-mode .initiative-filter-input::placeholder {
+      color: rgba(104, 121, 148, 0.72);
+    }
+    .tooltip-mode .initiative-filter-options {
+      display: grid;
+      gap: 5px;
+    }
+    .tooltip-mode .initiative-filter-options.is-month {
+      max-height: 250px;
+      overflow: auto;
+    }
+    .tooltip-mode .initiative-filter-option {
+      min-width: 0;
+      height: 28px;
+      padding: 0 9px;
+      border-radius: 9px;
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--muted);
+      font: 900 11px/1 var(--font-sans);
+      text-align: left;
+      cursor: pointer;
+    }
+    .tooltip-mode .initiative-filter-option.is-active {
+      border-color: rgba(53, 108, 255, 0.25);
+      background: rgba(53, 108, 255, 0.11);
+      color: #356cff;
+    }
+    .tooltip-mode .initiative-filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .tooltip-mode .initiative-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 14px;
+    }
+    .tooltip-mode .initiative-table-card {
+      --initiative-table-height: 390px;
+      position: relative;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      min-width: 0;
+      padding: 18px;
+      border-radius: 28px;
+      background: var(--paper);
+      border: 1px solid rgba(255, 255, 255, 0.58);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .tooltip-mode .initiative-table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .tooltip-mode .initiative-table-title {
+      margin: 0;
+      font: 900 14px/1.25 var(--font-sans);
+      letter-spacing: -0.01em;
+    }
+    .tooltip-mode .initiative-table-note {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .tooltip-mode .initiative-table {
+      display: grid;
+      align-content: start;
+      gap: 6px;
+      height: var(--initiative-table-height);
+      max-height: var(--initiative-table-height);
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .tooltip-mode .initiative-row {
+      display: grid;
+      grid-template-columns: minmax(142px, 1fr) 64px 112px;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.60);
+      border: 1px solid rgba(22, 32, 51, 0.055);
+      color: var(--ink);
+      font-size: 11.5px;
+      font-weight: 800;
+    }
+    .tooltip-mode .initiative-row.is-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      align-items: start;
+      background: rgba(245, 248, 255, 0.96);
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 900;
+    }
+    .tooltip-mode .initiative-row[hidden] {
+      display: none;
+    }
+    .tooltip-mode .initiative-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tooltip-mode .initiative-type {
+      justify-self: start;
+      min-width: 44px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .tooltip-mode .initiative-type.is-event {
+      background: rgba(53, 108, 255, 0.10);
+      color: #356cff;
+    }
+    .tooltip-mode .initiative-type.is-gacha {
+      background: rgba(207, 78, 100, 0.11);
+      color: #cf4e64;
+    }
+    .tooltip-mode .initiative-type.is-product {
+      background: rgba(49, 142, 85, 0.11);
+      color: #318e55;
+    }
+    .tooltip-mode .initiative-date {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .tooltip-mode .initiative-row:not(.is-header) .initiative-date {
+      display: none;
+    }
+    .tooltip-mode .initiative-row:not(.is-header)::after {
+      content: attr(data-start) " - " attr(data-end);
+      grid-column: 3;
+      color: var(--muted);
+      white-space: nowrap;
+      font-weight: 900;
+    }
+    .tooltip-mode .initiative-empty {
+      position: absolute;
+      top: 74px;
+      right: 18px;
+      left: 18px;
+      z-index: 3;
+      display: none;
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.50);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .tooltip-mode .initiative-empty.is-visible {
+      display: block;
+    }
+    .tooltip-mode .event-list-actions {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tooltip-mode .driver-expand-button,
+    .tooltip-mode .driver-modal-close,
+    .tooltip-mode .driver-filter-button {
+      border: 1px solid rgba(22, 32, 51, 0.10);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      font: 800 12px/1 var(--font-sans);
+      cursor: pointer;
+    }
+    .tooltip-mode .driver-expand-button {
+      padding: 9px 13px;
+      box-shadow: 0 8px 18px rgba(19, 31, 55, 0.08);
+    }
+    .tooltip-mode .driver-expand-button:hover,
+    .tooltip-mode .driver-filter-button.is-active {
+      border-color: rgba(53, 108, 255, 0.26);
+      background: var(--nav);
+      color: #ffffff;
+    }
+    .tooltip-mode .sales-driver-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .tooltip-mode .driver-table-card {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 14px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.46);
+      border: 1px solid rgba(22, 32, 51, 0.07);
+    }
+    .tooltip-mode .driver-table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .tooltip-mode .driver-table-title {
+      margin: 0;
+      font: 800 14px/1.3 var(--font-sans);
+      letter-spacing: -0.01em;
+    }
+    .tooltip-mode .driver-table-note {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .tooltip-mode .rank-chart {
+      display: grid;
+      gap: 12px;
+    }
+    .tooltip-mode .rank-row {
+      display: grid;
+      grid-template-columns: minmax(132px, 0.34fr) minmax(0, 0.66fr);
+      gap: 12px;
+      align-items: center;
+    }
+    .tooltip-mode .rank-label {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 800;
+      text-align: right;
+    }
+    .tooltip-mode .rank-bar-area {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .tooltip-mode .rank-bar-track {
+      position: relative;
+      height: 32px;
+      background: transparent;
+      border-left: 1px solid rgba(22, 32, 51, 0.20);
+    }
+    .tooltip-mode .rank-bar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: var(--bar);
+      min-width: 32px;
+      background: linear-gradient(90deg, rgba(53, 108, 255, 0.86), rgba(53, 108, 255, 0.58));
+    }
+    .tooltip-mode .rank-chart.is-gacha .rank-bar-fill {
+      background: linear-gradient(90deg, rgba(53, 108, 255, 0.86), rgba(53, 108, 255, 0.58));
+    }
+    .tooltip-mode .rank-value {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #ffffff;
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      text-shadow: 0 1px 2px rgba(19, 31, 55, 0.30);
+    }
+    .tooltip-mode .rank-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+    .tooltip-mode .rank-meta .risk {
+      color: var(--red);
+    }
+    .tooltip-mode .rank-meta .good {
+      color: var(--green);
+    }
+    .tooltip-mode .forecast-chart {
+      display: grid;
+      gap: 4px;
+      max-height: 330px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 4px;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(99, 112, 138, 0.34) transparent;
+    }
+    .tooltip-mode .forecast-chart::-webkit-scrollbar {
+      width: 6px;
+    }
+    .tooltip-mode .forecast-chart::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: rgba(99, 112, 138, 0.34);
+    }
+    .tooltip-mode .forecast-columns,
+    .tooltip-mode .forecast-row {
+      grid-template-columns: minmax(118px, 152px) minmax(96px, 1fr) minmax(58px, max-content) minmax(66px, max-content);
+      gap: 8px;
+    }
+    .tooltip-mode .forecast-columns {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: grid;
+      align-items: end;
+      min-height: 18px;
+      padding: 0 0 2px;
+      background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(255, 252, 246, 0.92));
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .tooltip-mode .forecast-row {
+      position: relative;
+      display: grid;
+      align-items: center;
+      min-height: 27px;
+    }
+    .tooltip-mode .forecast-label {
+      color: var(--ink);
+      font-size: 11.5px;
+      line-height: 1.25;
+      font-weight: 800;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .tooltip-mode .forecast-row.is-ended .forecast-label,
+    .tooltip-mode .forecast-row.is-ended .forecast-name {
+      color: rgba(99, 112, 138, 0.72);
+    }
+    .tooltip-mode .forecast-row.is-ended .forecast-label {
+      font-weight: 700;
+    }
+    .tooltip-mode .forecast-track {
+      position: relative;
+      height: 20px;
+      border-left: 1px solid rgba(22, 32, 51, 0.18);
+      background: rgba(22, 32, 51, 0.06);
+      overflow: hidden;
+    }
+    .tooltip-mode .forecast-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--actual);
+      min-width: 0;
+      background: linear-gradient(90deg, rgba(63, 138, 77, 0.86), rgba(63, 138, 77, 0.58));
+    }
+    .tooltip-mode .forecast-fill.is-down {
+      background: linear-gradient(90deg, rgba(196, 77, 92, 0.84), rgba(196, 77, 92, 0.56));
+    }
+    .tooltip-mode .forecast-chart.is-gacha .forecast-fill {
+      background: linear-gradient(90deg, rgba(63, 138, 77, 0.86), rgba(63, 138, 77, 0.58));
+    }
+    .tooltip-mode .forecast-chart.is-gacha .forecast-fill.is-down {
+      background: linear-gradient(90deg, rgba(196, 77, 92, 0.84), rgba(196, 77, 92, 0.56));
+    }
+    .tooltip-mode .forecast-marker {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: var(--forecast);
+      width: 2px;
+      transform: translateX(-1px);
+      background: rgba(22, 32, 51, 0.62);
+      box-shadow: none;
+      pointer-events: none;
+    }
+    .tooltip-mode .forecast-current {
+      justify-self: end;
+      color: var(--ink);
+      font-size: 11.5px;
+      line-height: 1;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .tooltip-mode .forecast-current.is-zero {
+      color: var(--muted);
+    }
+    .tooltip-mode .forecast-diff {
+      justify-self: end;
+      min-width: 62px;
+      padding: 0;
+      background: transparent;
+      color: var(--green);
+      font-size: 11.5px;
+      line-height: 1;
+      font-weight: 900;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .tooltip-mode .forecast-diff.is-down {
+      background: transparent;
+      color: var(--red);
+    }
+    .tooltip-mode .forecast-detail {
+      position: absolute;
+      left: min(148px, 34%);
+      top: 50%;
+      bottom: auto;
+      z-index: 1200;
+      width: min(360px, 70vw);
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(22, 32, 51, 0.96);
+      color: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 16px 36px rgba(19, 31, 55, 0.26);
+      font-size: 11px;
+      line-height: 1.65;
+      font-weight: 700;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-50%) translateX(8px);
+      transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s ease;
+    }
+    .tooltip-mode .forecast-row:hover .forecast-detail,
+    .tooltip-mode .forecast-row:focus-within .forecast-detail {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(-50%) translateX(0);
+    }
+    .tooltip-mode .driver-expand-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      display: none;
+      padding: 28px;
+      background: rgba(19, 31, 55, 0.34);
+      backdrop-filter: blur(14px);
+    }
+    .tooltip-mode .driver-expand-modal.is-open {
+      display: grid;
+      place-items: center;
+    }
+    .tooltip-mode .driver-modal-panel {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px;
+      width: min(1280px, calc(100vw - 56px));
+      max-height: calc(100vh - 56px);
+      padding: 22px;
+      border-radius: 30px;
+      background: rgba(255, 252, 246, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.68);
+      box-shadow: 0 30px 90px rgba(19, 31, 55, 0.30);
+      overflow: hidden;
+    }
+    .tooltip-mode .driver-modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+    }
+    .tooltip-mode .driver-modal-title {
+      margin: 0;
+      font: 900 22px/1.25 var(--font-sans);
+      letter-spacing: -0.03em;
+    }
+    .tooltip-mode .driver-modal-copy {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      font-weight: 700;
+    }
+    .tooltip-mode .driver-modal-close {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .tooltip-mode .driver-modal-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid rgba(22, 32, 51, 0.07);
+    }
+    .tooltip-mode .driver-modal-stats,
+    .tooltip-mode .driver-modal-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tooltip-mode .driver-stat {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(22, 32, 51, 0.06);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .tooltip-mode .driver-stat strong {
+      color: var(--ink);
+      font-weight: 900;
+    }
+    .tooltip-mode .driver-stat .ended {
+      color: var(--muted);
+    }
+    .tooltip-mode .driver-stat .up {
+      color: var(--green);
+    }
+    .tooltip-mode .driver-stat .down {
+      color: var(--red);
+    }
+    .tooltip-mode .driver-stat.is-up {
+      background: rgba(63, 138, 77, 0.12);
+      color: var(--green);
+    }
+    .tooltip-mode .driver-stat.is-down {
+      background: rgba(196, 77, 92, 0.12);
+      color: var(--red);
+    }
+    .tooltip-mode .driver-filter-button {
+      padding: 8px 10px;
+    }
+    .tooltip-mode .driver-sort-select {
+      min-height: 30px;
+      padding: 0 28px 0 10px;
+      border: 1px solid rgba(22, 32, 51, 0.12);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+      font: 800 12px/1 var(--font-sans);
+    }
+    .tooltip-mode .driver-modal-body {
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .tooltip-mode .driver-modal-body .sales-driver-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+    .tooltip-mode .driver-modal-body .driver-table-card {
+      background: rgba(255, 255, 255, 0.62);
+    }
+    .tooltip-mode .driver-modal-body .forecast-chart {
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+    }
+    .tooltip-mode .driver-modal-body .forecast-columns,
+    .tooltip-mode .driver-modal-body .forecast-row {
+      grid-template-columns: minmax(146px, 176px) minmax(180px, 1fr) minmax(62px, max-content) minmax(70px, max-content);
+      gap: 10px;
+    }
+    .tooltip-mode .driver-modal-body .forecast-row {
+      min-height: 30px;
+    }
+    .tooltip-mode .driver-modal-body .forecast-label {
+      display: grid;
+      gap: 3px;
+    }
+    .tooltip-mode .forecast-name {
+      color: var(--ink);
+      font-weight: 900;
+    }
+    .tooltip-mode .forecast-period {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 800;
+    }
+    .tooltip-mode .driver-modal-body .forecast-track {
+      height: 22px;
+    }
+    .tooltip-mode .driver-bars {
+      display: grid;
+      gap: 10px;
+    }
+    .tooltip-mode .driver-bar-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.42fr) minmax(0, 0.58fr);
+      gap: 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid rgba(22, 32, 51, 0.07);
+    }
+    .tooltip-mode .driver-bar-row:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+    .tooltip-mode .driver-name {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+    .tooltip-mode .driver-name strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.3;
+      font-weight: 800;
+    }
+    .tooltip-mode .driver-name span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .tooltip-mode .driver-bar-area {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .tooltip-mode .driver-bar-track {
+      position: relative;
+      height: 26px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(22, 32, 51, 0.08);
+      border: 1px solid rgba(22, 32, 51, 0.06);
+    }
+    .tooltip-mode .driver-bar-target {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(53, 108, 255, 0.10), rgba(53, 108, 255, 0.04));
+    }
+    .tooltip-mode .driver-bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--progress);
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(53, 108, 255, 0.84), rgba(53, 108, 255, 0.48));
+    }
+    .tooltip-mode .driver-bar-fill.is-gacha {
+      background: linear-gradient(90deg, rgba(196, 77, 92, 0.86), rgba(196, 77, 92, 0.50));
+    }
+    .tooltip-mode .driver-bar-fill.is-risk {
+      background: linear-gradient(90deg, rgba(196, 77, 92, 0.82), rgba(236, 151, 92, 0.58));
+    }
+    .tooltip-mode .driver-target-line {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: var(--target);
+      width: 2px;
+      background: rgba(22, 32, 51, 0.42);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.62);
+    }
+    .tooltip-mode .driver-bar-label {
+      position: absolute;
+      inset: 0 10px 0 auto;
+      display: inline-flex;
+      align-items: center;
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 900;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.52);
+    }
+    .tooltip-mode .driver-bar-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .tooltip-mode .driver-bar-meta .risk {
+      color: var(--red);
+    }
+    .tooltip-mode .driver-bar-meta .good {
+      color: var(--green);
+    }
+    .tooltip-mode .event-table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(22, 32, 51, 0.08);
+      background: rgba(255, 255, 255, 0.58);
+    }
+    .tooltip-mode .event-table {
+      width: 100%;
+      min-width: 1120px;
+      border-collapse: collapse;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .tooltip-mode .event-table.is-progress {
+      min-width: 760px;
+    }
+    .tooltip-mode .event-table th,
+    .tooltip-mode .event-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(22, 32, 51, 0.07);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .tooltip-mode .event-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(248, 250, 255, 0.96);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .tooltip-mode .event-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .tooltip-mode .event-table td {
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .tooltip-mode .event-table .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .tooltip-mode .event-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .tooltip-mode .event-chip.is-quest {
+      background: rgba(63, 138, 77, 0.12);
+      color: var(--green);
+    }
+    .tooltip-mode .event-chip.is-gacha {
+      background: rgba(196, 77, 92, 0.13);
+      color: var(--red);
+    }
+    .tooltip-mode .event-chip.is-product {
+      background: rgba(53, 108, 255, 0.12);
+      color: var(--blue);
+    }
+    .tooltip-mode .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(63, 138, 77, 0.12);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .tooltip-mode .progress-pill.is-watch {
+      background: rgba(196, 77, 92, 0.12);
+      color: var(--red);
+    }
+    .tooltip-mode .progress-pill.is-muted {
+      background: rgba(22, 32, 51, 0.08);
+      color: var(--muted);
+    }
+    .tooltip-mode .label-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .tooltip-mode .label-row .label {
+      min-width: 0;
+    }
+    .tooltip-mode .signal-note {
+      display: none;
+    }
+    .tooltip-mode .insight-tip {
+      position: relative;
+      z-index: 300;
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .tooltip-mode .insight-button {
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(22, 32, 51, 0.14);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--muted);
+      box-shadow: 0 8px 18px rgba(19, 31, 55, 0.08);
+      font: 800 12px/1 var(--font-sans);
+      cursor: help;
+    }
+    .tooltip-mode .insight-button:hover,
+    .tooltip-mode .insight-button:focus-visible {
+      border-color: rgba(53, 108, 255, 0.46);
+      color: var(--blue);
+      outline: none;
+    }
+    .tooltip-mode .insight-popover {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 100000;
+      width: min(360px, 70vw);
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(22, 32, 51, 0.96);
+      color: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 18px 44px rgba(19, 31, 55, 0.28);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+      text-align: left;
+      white-space: normal;
+    }
+    .tooltip-mode .label-row .insight-popover {
+      left: 0;
+      right: auto;
+    }
+    .tooltip-mode .panel-title .insight-popover {
+      left: 0;
+      right: auto;
+    }
+    .tooltip-mode h1 .insight-popover {
+      left: 0;
+      right: auto;
+      width: min(430px, 80vw);
+      letter-spacing: 0;
+    }
+    .tooltip-mode .title-line .insight-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: none;
+      font-size: 11px;
+    }
+    .tooltip-mode .title-line .insight-popover {
+      left: 0;
+      right: auto;
+      width: min(430px, 80vw);
+      letter-spacing: 0;
+    }
+    .tooltip-mode h1 .insight-button {
+      letter-spacing: 0;
+    }
+    .tooltip-mode .insight-tip:hover .insight-popover,
+    .tooltip-mode .insight-tip:focus-within .insight-popover {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .tooltip-mode .insight-kicker {
+      display: block;
+      margin-bottom: 6px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+    .tooltip-mode .insight-copy {
+      display: block;
+      font-size: 12px;
+      line-height: 1.7;
+      font-weight: 700;
+    }
+    @media (max-width: 1240px) {
+      .tooltip-mode .initiative-grid {
+        grid-template-columns: 1fr;
+      }
+      .tooltip-mode .sales-driver-grid {
+        grid-template-columns: 1fr;
+      }
+      .tooltip-mode .driver-modal-body .sales-driver-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 720px) {
+      .tooltip-mode .signal-grid {
+        grid-template-columns: 1fr;
+      }
+      .tooltip-mode .initiative-row {
+        grid-template-columns: minmax(112px, 1fr) 56px 94px;
+        gap: 5px;
+      }
+      .tooltip-mode .event-list-head {
+        display: grid;
+      }
+      .tooltip-mode .sales-driver-grid {
+        grid-template-columns: 1fr;
+      }
+      .tooltip-mode .forecast-columns,
+      .tooltip-mode .forecast-row {
+        grid-template-columns: minmax(92px, 116px) minmax(70px, 1fr) minmax(48px, max-content) minmax(56px, max-content);
+        gap: 5px;
+      }
+      .tooltip-mode .forecast-label,
+      .tooltip-mode .forecast-current,
+      .tooltip-mode .forecast-diff {
+        font-size: 10.5px;
+      }
+      .tooltip-mode .driver-expand-modal {
+        padding: 12px;
+      }
+      .tooltip-mode .driver-modal-panel {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        padding: 14px;
+        border-radius: 22px;
+      }
+      .tooltip-mode .driver-modal-head,
+      .tooltip-mode .driver-modal-toolbar {
+        display: grid;
+      }
+      .tooltip-mode .driver-modal-body .forecast-columns,
+      .tooltip-mode .driver-modal-body .forecast-row {
+        grid-template-columns: minmax(92px, 116px) minmax(86px, 1fr) minmax(48px, max-content) minmax(56px, max-content);
+        gap: 5px;
+      }
+      .tooltip-mode .signal-card .card-body {
+        grid-template-columns: 1fr;
+      }
+      .tooltip-mode .insight-popover,
+      .tooltip-mode .label-row .insight-popover {
+        left: auto;
+        right: 0;
+        width: min(320px, 78vw);
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="../shared/dashboard_nav.css">
+</head>
+<body class="tooltip-mode">
+  <div class="app">
+    <aside data-dashboard-nav data-active="summary" data-base="../"></aside>
+
+    <main class="page">
+      <section class="head page-head">
+        <div class="title-block">
+          <div class="title-line">
+            <h1>ゲーム状況サマリー</h1>
+            <span class="insight-tip">
+              <button class="insight-button" type="button" aria-label="ゲーム状況サマリーの見方を表示">?</button>
+              <span class="insight-popover" role="tooltip">
+                <span class="insight-kicker">ゲーム状況サマリーの見方</span>
+                <span class="insight-copy">売上 = プレイヤー数 × 課金率 × 課金単価<br><br>現在の運営状況を把握し、各指標に問題や違和感が出ていないかを判断する。詳細は分析ページで確認する。</span>
+              </span>
+            </span>
+          </div>
+        </div>
+        <div class="head-actions head-side">
+          <div class="control-row period-control condition-bar" aria-label="分析条件">
+            <span class="chip period-chip period-range-chip" id="periodChip"></span>
+            <div class="summary-segment-control condition-object control-group" aria-label="分類軸">
+              <span class="control-label">分類軸</span>
+              <div class="toggle-group segment" id="scopeToggle" aria-label="範囲選択"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="alert-strip"></section>
+
+      <section class="hero">
+        <article class="panel revenue-panel">
+          <div class="panel-head">
+            <div class="panel-title-row">
+              <div class="title-metric-row">
+                <h2 class="panel-title" id="revenueTitle">累計売上</h2>
+                <div class="metric-main">
+                  <div class="metric-label" id="revenueMetricLabel"></div>
+                  <div class="value" id="revenueValue"></div>
+                  <div class="hint" id="revenueHint"></div>
+                </div>
+                <p class="sub" id="revenueDescription"></p>
+              </div>
+            </div>
+          </div>
+          <div class="delta-row" id="revenueMetrics"></div>
+          <div class="legend" id="revenueLegend"></div>
+          <div class="chart seamless" id="revenueChart"></div>
+        </article>
+
+        <article class="panel dmau-panel">
+          <div class="panel-head">
+            <div class="panel-title-row">
+              <div class="title-metric-row">
+                <h2 class="panel-title">rDAU</h2>
+                <div class="metric-main">
+                  <div class="metric-label" id="dmauMetricLabel"></div>
+                  <div class="value" id="dmauValue"></div>
+                  <div class="hint" id="dmauHint"></div>
+                </div>
+                <p class="sub" id="dmauDescription"></p>
+              </div>
+            </div>
+          </div>
+          <div class="dmau-summary" id="dmauMetrics"></div>
+          <div class="legend" id="dmauLineLegend"></div>
+          <div class="chart seamless" id="playerChart"></div>
+          <div class="legend center" style="margin-top:10px" id="dmauBarLegend"></div>
+        </article>
+      </section>
+
+      <section class="signal-grid" id="signalGrid"></section>
+
+      <section class="event-list-panel" aria-labelledby="eventListTitle">
+        <div class="event-list-head">
+          <div>
+            <h2 class="event-list-title" id="eventListTitle">
+              販売施策別 実績/予測差
+              <span class="insight-tip">
+                <button class="insight-button" type="button" aria-label="販売施策別 実績/予測差の見方を表示">?</button>
+                <span class="insight-popover" role="tooltip">
+                  <span class="insight-kicker">販売施策別 実績/予測差の見方</span>
+                  <span class="insight-copy">各販売施策の実績と予測着地差を見る。上振れ・下振れしている施策を特定し、売上の押し上げ要因や未達要因を確認する。施策名が薄いものは販売期間が終了済み。</span>
+                </span>
+              </span>
+            </h2>
+          </div>
+          <div class="event-list-actions">
+            <div class="event-list-count">商品15件 / ガチャ15件</div>
+            <button class="driver-expand-button" id="driverExpandOpen" type="button">拡大表示</button>
+          </div>
+        </div>
+        <div class="sales-driver-grid">
+          <section class="driver-table-card" aria-label="販売物別売上進捗">
+            <div class="driver-table-head">
+              <h3 class="driver-table-title">販売物別 売上</h3>
+            </div>
+            <div class="forecast-chart">
+              <div class="forecast-columns" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span>売上</span>
+                <span>予測着地差</span>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-01">
+                <div class="forecast-label">初心者応援セット</div>
+                <div class="forecast-track" style="--actual:42%;--forecast:45%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,500千</span>
+                <div class="forecast-diff is-down">-100千</div>
+                <div class="forecast-detail">現時点売上 3,500千円 / 現時点予測 3,600千円 / 最終着地見込み 3,500千円 / 予測差 -100千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-05">
+                <div class="forecast-label">新生活ブーストパック</div>
+                <div class="forecast-track" style="--actual:86%;--forecast:78%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">7,100千</span>
+                <div class="forecast-diff">+300千</div>
+                <div class="forecast-detail">現時点売上 7,100千円 / 現時点予測 6,400千円 / 最終着地見込み 7,100千円 / 予測差 +300千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-09">
+                <div class="forecast-label">限定育成パック</div>
+                <div class="forecast-track" style="--actual:58%;--forecast:60%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,800千</span>
+                <div class="forecast-diff is-down">-200千</div>
+                <div class="forecast-detail">現時点売上 4,800千円 / 現時点予測 5,000千円 / 最終着地見込み 4,800千円 / 予測差 -200千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-15">
+                <div class="forecast-label">月央プレミアム再販</div>
+                <div class="forecast-track" style="--actual:66%;--forecast:71%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">5,500千</span>
+                <div class="forecast-diff is-down">-500千</div>
+                <div class="forecast-detail">現時点売上 5,500千円 / 現時点予測 5,900千円 / 最終着地見込み 6,700千円 / 予測差 -500千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-18">
+                <div class="forecast-label">週末スタミナパック</div>
+                <div class="forecast-track" style="--actual:49%;--forecast:48%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,100千</span>
+                <div class="forecast-diff">+100千</div>
+                <div class="forecast-detail">現時点売上 4,100千円 / 現時点予測 4,000千円 / 最終着地見込み 4,100千円 / 予測差 +100千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-20">
+                <div class="forecast-label">推し強化素材セット</div>
+                <div class="forecast-track" style="--actual:31%;--forecast:28%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,600千</span>
+                <div class="forecast-diff">+200千</div>
+                <div class="forecast-detail">現時点売上 2,600千円 / 現時点予測 2,300千円 / 最終着地見込み 5,900千円 / 予測差 +200千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-25">
+                <div class="forecast-label">月末チャージボーナス</div>
+                <div class="forecast-track" style="--actual:39%;--forecast:34%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,200千</span>
+                <div class="forecast-diff">+300千</div>
+                <div class="forecast-detail">現時点売上 3,200千円 / 現時点予測 2,800千円 / 最終着地見込み 8,300千円 / 予測差 +300千円</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-26">
+                <div class="forecast-label">記念ログインパス</div>
+                <div class="forecast-track" style="--actual:21%;--forecast:26%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">1,700千</span>
+                <div class="forecast-diff is-down">-200千</div>
+                <div class="forecast-detail">現時点売上 1,700千円 / 現時点予測 2,100千円 / 最終着地見込み 2,800千円 / 予測差 -200千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-04-27">
+                <div class="forecast-label">特別ミッションパス</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:97%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,900千</span>
+                <div class="forecast-diff">+100千</div>
+                <div class="forecast-detail">最終売上 3,900千円 / 予測 3,800千円 / 予測差 +100千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-04-29">
+                <div class="forecast-label">ラストスパートパック</div>
+                <div class="forecast-track" style="--actual:94%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">6,200千</span>
+                <div class="forecast-diff is-down">-400千</div>
+                <div class="forecast-detail">最終売上 6,200千円 / 予測 6,600千円 / 予測差 -400千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-04-30">
+                <div class="forecast-label">GW先行パック</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:97%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,600千</span>
+                <div class="forecast-diff">+150千</div>
+                <div class="forecast-detail">最終売上 4,600千円 / 予測 4,450千円 / 予測差 +150千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-02">
+                <div class="forecast-label">復帰応援パック</div>
+                <div class="forecast-track" style="--actual:96%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,700千</span>
+                <div class="forecast-diff is-down">-150千</div>
+                <div class="forecast-detail">最終売上 3,700千円 / 予測 3,850千円 / 予測差 -150千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-04">
+                <div class="forecast-label">育成時短パック</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:95%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">5,200千</span>
+                <div class="forecast-diff">+250千</div>
+                <div class="forecast-detail">最終売上 5,200千円 / 予測 4,950千円 / 予測差 +250千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-06">
+                <div class="forecast-label">記念スキンパック</div>
+                <div class="forecast-track" style="--actual:91%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,900千</span>
+                <div class="forecast-diff is-down">-300千</div>
+                <div class="forecast-detail">最終売上 2,900千円 / 予測 3,200千円 / 予測差 -300千円</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-08">
+                <div class="forecast-label">月末限定セット</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:98%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">6,400千</span>
+                <div class="forecast-diff">+100千</div>
+                <div class="forecast-detail">最終売上 6,400千円 / 予測 6,300千円 / 予測差 +100千円</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="driver-table-card" aria-label="ガチャ別石消費進捗">
+            <div class="driver-table-head">
+              <h3 class="driver-table-title">ガチャ別 石消費</h3>
+            </div>
+            <div class="forecast-chart is-gacha">
+              <div class="forecast-columns" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span>石消費</span>
+                <span>予測着地差</span>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-03">
+                <div class="forecast-label">限定フェスガチャ 前半</div>
+                <div class="forecast-track" style="--actual:96%;--forecast:90%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,700千</span>
+                <div class="forecast-diff">+200千</div>
+                <div class="forecast-detail">現時点石消費 4,700千個 / 現時点予測 4,400千個 / 最終着地見込み 4,700千個 / 予測差 +200千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-07">
+                <div class="forecast-label">属性ピックアップガチャ</div>
+                <div class="forecast-track" style="--actual:59%;--forecast:63%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,900千</span>
+                <div class="forecast-diff is-down">-200千</div>
+                <div class="forecast-detail">現時点石消費 2,900千個 / 現時点予測 3,100千個 / 最終着地見込み 2,900千個 / 予測差 -200千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-11">
+                <div class="forecast-label">限定フェスガチャ 後半</div>
+                <div class="forecast-track" style="--actual:86%;--forecast:78%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,200千</span>
+                <div class="forecast-diff">+300千</div>
+                <div class="forecast-detail">現時点石消費 4,200千個 / 現時点予測 3,800千個 / 最終着地見込み 4,900千個 / 予測差 +300千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-14">
+                <div class="forecast-label">ステップアップガチャ</div>
+                <div class="forecast-track" style="--actual:63%;--forecast:65%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,100千</span>
+                <div class="forecast-diff is-down">-100千</div>
+                <div class="forecast-detail">現時点石消費 3,100千個 / 現時点予測 3,200千個 / 最終着地見込み 3,100千個 / 予測差 -100千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-17">
+                <div class="forecast-label">恒常チケットガチャ</div>
+                <div class="forecast-track" style="--actual:45%;--forecast:53%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,200千</span>
+                <div class="forecast-diff is-down">-300千</div>
+                <div class="forecast-detail">現時点石消費 2,200千個 / 現時点予測 2,600千個 / 最終着地見込み 2,200千個 / 予測差 -300千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-21">
+                <div class="forecast-label">復刻セレクションガチャ</div>
+                <div class="forecast-track" style="--actual:61%;--forecast:56%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,000千</span>
+                <div class="forecast-diff">+200千</div>
+                <div class="forecast-detail">現時点石消費 3,000千個 / 現時点予測 2,700千個 / 最終着地見込み 3,600千個 / 予測差 +200千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-23">
+                <div class="forecast-label">コラボ復刻ミニガチャ</div>
+                <div class="forecast-track" style="--actual:49%;--forecast:53%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,400千</span>
+                <div class="forecast-diff is-down">-100千</div>
+                <div class="forecast-detail">現時点石消費 2,400千個 / 現時点予測 2,600千個 / 最終着地見込み 2,500千個 / 予測差 -100千個</div>
+              </div>
+              <div class="forecast-row" data-implementation-date="2026-04-25">
+                <div class="forecast-label">月末前夜祭ガチャ</div>
+                <div class="forecast-track" style="--actual:71%;--forecast:62%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,500千</span>
+                <div class="forecast-diff">+400千</div>
+                <div class="forecast-detail">現時点石消費 3,500千個 / 現時点予測 3,000千個 / 最終着地見込み 3,800千個 / 予測差 +400千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-04-27">
+                <div class="forecast-label">有償限定確定ガチャ</div>
+                <div class="forecast-track" style="--actual:93%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">2,700千</span>
+                <div class="forecast-diff is-down">-200千</div>
+                <div class="forecast-detail">最終石消費 2,700千個 / 予測 2,900千個 / 予測差 -200千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-04-29">
+                <div class="forecast-label">ラストチャンスガチャ</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:95%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,100千</span>
+                <div class="forecast-diff">+200千</div>
+                <div class="forecast-detail">最終石消費 4,100千個 / 予測 3,900千個 / 予測差 +200千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-01">
+                <div class="forecast-label">GW限定ステップガチャ</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:93%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">4,300千</span>
+                <div class="forecast-diff">+300千</div>
+                <div class="forecast-detail">最終石消費 4,300千個 / 予測 4,000千個 / 予測差 +300千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-03">
+                <div class="forecast-label">復帰者限定ガチャ</div>
+                <div class="forecast-track" style="--actual:95%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,100千</span>
+                <div class="forecast-diff is-down">-150千</div>
+                <div class="forecast-detail">最終石消費 3,100千個 / 予測 3,250千個 / 予測差 -150千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-05">
+                <div class="forecast-label">属性選べるガチャ</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:97%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,900千</span>
+                <div class="forecast-diff">+100千</div>
+                <div class="forecast-detail">最終石消費 3,900千個 / 予測 3,800千個 / 予測差 +100千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-07">
+                <div class="forecast-label">育成素材ピックアップ</div>
+                <div class="forecast-track" style="--actual:94%;--forecast:100%">
+                  <span class="forecast-fill is-down"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">3,200千</span>
+                <div class="forecast-diff is-down">-200千</div>
+                <div class="forecast-detail">最終石消費 3,200千個 / 予測 3,400千個 / 予測差 -200千個</div>
+              </div>
+              <div class="forecast-row is-ended" data-implementation-date="2026-05-09">
+                <div class="forecast-label">月末フェス予告ガチャ</div>
+                <div class="forecast-track" style="--actual:100%;--forecast:90%">
+                  <span class="forecast-fill"></span>
+                  <span class="forecast-marker"></span>
+                </div>
+                <span class="forecast-current">5,100千</span>
+                <div class="forecast-diff">+500千</div>
+                <div class="forecast-detail">最終石消費 5,100千個 / 予測 4,600千個 / 予測差 +500千個</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="annual-event-panel" aria-label="前年比施策一覧">
+        <div class="initiative-grid">
+          <section class="initiative-table-card" data-initiative-panel aria-label="2026年施策一覧">
+            <div class="initiative-table-head">
+              <h3 class="initiative-table-title">2026年施策一覧</h3>
+            </div>
+            <div class="initiative-table" data-initiative-list="current">
+              <div class="initiative-row is-header">
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="name">施策名</span>
+                    <span class="initiative-search-mark" aria-hidden="true"></span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <input class="initiative-filter-input" type="search" data-initiative-name placeholder="名称検索" aria-label="2026年施策名検索">
+                  </div>
+                </div>
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="category">分類</span>
+                    <span class="initiative-filter-caret">▼</span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <div class="initiative-filter-options">
+                      <button class="initiative-filter-option is-active" type="button" data-initiative-category-option data-value="all">すべて</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="event">イベント</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="gacha">ガチャ</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="product">商品</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="periodMonth">期間</span>
+                    <span class="initiative-filter-caret">▼</span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <div class="initiative-filter-options is-month">
+                      <button class="initiative-filter-option is-active" type="button" data-initiative-period-month-option data-value="all">年間</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="1">1月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="2">2月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="3">3月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="4">4月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="5">5月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="6">6月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="7">7月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="8">8月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="9">9月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="10">10月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="11">11月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="12">12月</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="12/20" data-end="12/31">
+                <span class="initiative-name" title="年末フェス限定ガチャ">年末フェス限定ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">12/20</span>
+                <span class="initiative-date">12/31</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="12/12" data-end="12/25">
+                <span class="initiative-name" title="年末追い込みパック">年末追い込みパック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">12/12</span>
+                <span class="initiative-date">12/25</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="12/03" data-end="12/18">
+                <span class="initiative-name" title="星夜ミッションイベント">星夜ミッションイベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">12/03</span>
+                <span class="initiative-date">12/18</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="11/24" data-end="12/08">
+                <span class="initiative-name" title="前夜祭ステップアップガチャ">前夜祭ステップアップガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">11/24</span>
+                <span class="initiative-date">12/08</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="11/18" data-end="11/30">
+                <span class="initiative-name" title="年末前夜祭ログイン施策">年末前夜祭ログイン施策</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">11/18</span>
+                <span class="initiative-date">11/30</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="11/02" data-end="11/14">
+                <span class="initiative-name" title="前夜祭準備パック">前夜祭準備パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">11/02</span>
+                <span class="initiative-date">11/14</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="10/18" data-end="10/31">
+                <span class="initiative-name" title="ハロウィン限定パック">ハロウィン限定パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">10/18</span>
+                <span class="initiative-date">10/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="10/12" data-end="10/27">
+                <span class="initiative-name" title="ハロウィン収集イベント">ハロウィン収集イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">10/12</span>
+                <span class="initiative-date">10/27</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="10/04" data-end="10/17">
+                <span class="initiative-name" title="ハロウィン前夜ガチャ">ハロウィン前夜ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">10/04</span>
+                <span class="initiative-date">10/17</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="09/18" data-end="09/30">
+                <span class="initiative-name" title="コラボ後半ピックアップ">コラボ後半ピックアップ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">09/18</span>
+                <span class="initiative-date">09/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="09/05" data-end="09/26">
+                <span class="initiative-name" title="大型コラボ第2弾">大型コラボ第2弾</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">09/05</span>
+                <span class="initiative-date">09/26</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="09/01" data-end="09/14">
+                <span class="initiative-name" title="コラボ応援セット">コラボ応援セット</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">09/01</span>
+                <span class="initiative-date">09/14</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="08/24" data-end="08/31">
+                <span class="initiative-name" title="夏季復刻仕上げパック">夏季復刻仕上げパック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">08/24</span>
+                <span class="initiative-date">08/31</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="08/10" data-end="08/24">
+                <span class="initiative-name" title="夏季復刻ピックアップ">夏季復刻ピックアップ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">08/10</span>
+                <span class="initiative-date">08/24</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="08/01" data-end="08/09">
+                <span class="initiative-name" title="夏休みログイン施策">夏休みログイン施策</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">08/01</span>
+                <span class="initiative-date">08/09</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="07/22" data-end="07/31">
+                <span class="initiative-name" title="水着イベント追い込みパック">水着イベント追い込みパック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">07/22</span>
+                <span class="initiative-date">07/31</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="07/15" data-end="07/28">
+                <span class="initiative-name" title="水着後半ピックアップ">水着後半ピックアップ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">07/15</span>
+                <span class="initiative-date">07/28</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="07/01" data-end="07/21">
+                <span class="initiative-name" title="水着イベント">水着イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">07/01</span>
+                <span class="initiative-date">07/21</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="06/20" data-end="06/30">
+                <span class="initiative-name" title="周年ラストスパートパック">周年ラストスパートパック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">06/20</span>
+                <span class="initiative-date">06/30</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="06/12" data-end="06/30">
+                <span class="initiative-name" title="周年フェスガチャ">周年フェスガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">06/12</span>
+                <span class="initiative-date">06/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="06/01" data-end="06/11">
+                <span class="initiative-name" title="周年カウントダウン">周年カウントダウン</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">06/01</span>
+                <span class="initiative-date">06/11</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="05/18" data-end="05/31">
+                <span class="initiative-name" title="復帰者限定ピックアップ">復帰者限定ピックアップ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">05/18</span>
+                <span class="initiative-date">05/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="05/01" data-end="05/12">
+                <span class="initiative-name" title="GW復帰キャンペーン">GW復帰キャンペーン</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">05/01</span>
+                <span class="initiative-date">05/12</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="04/26" data-end="05/06">
+                <span class="initiative-name" title="GW限定スタミナパック">GW限定スタミナパック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">04/26</span>
+                <span class="initiative-date">05/06</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="04/18" data-end="04/30">
+                <span class="initiative-name" title="レイド攻略パック">レイド攻略パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">04/18</span>
+                <span class="initiative-date">04/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="04/10" data-end="04/24">
+                <span class="initiative-name" title="レイド難度調整イベント">レイド難度調整イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">04/10</span>
+                <span class="initiative-date">04/24</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="04/01" data-end="04/09">
+                <span class="initiative-name" title="春季ピックアップガチャ">春季ピックアップガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">04/01</span>
+                <span class="initiative-date">04/09</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="03/24" data-end="03/31">
+                <span class="initiative-name" title="新章到達応援パック">新章到達応援パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">03/24</span>
+                <span class="initiative-date">03/31</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="03/15" data-end="03/31">
+                <span class="initiative-name" title="新章追加記念ガチャ">新章追加記念ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">03/15</span>
+                <span class="initiative-date">03/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="03/01" data-end="03/14">
+                <span class="initiative-name" title="新章準備ミッション">新章準備ミッション</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">03/01</span>
+                <span class="initiative-date">03/14</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="02/08" data-end="02/20">
+                <span class="initiative-name" title="育成素材パック">育成素材パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">02/08</span>
+                <span class="initiative-date">02/20</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="02/07" data-end="02/20">
+                <span class="initiative-name" title="バレンタイン限定ガチャ">バレンタイン限定ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">02/07</span>
+                <span class="initiative-date">02/20</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="02/01" data-end="02/07">
+                <span class="initiative-name" title="バレンタイン前半イベント">バレンタイン前半イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">02/01</span>
+                <span class="initiative-date">02/07</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="01/20" data-end="01/31">
+                <span class="initiative-name" title="新春復刻ピックアップ">新春復刻ピックアップ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">01/20</span>
+                <span class="initiative-date">01/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="01/01" data-end="01/14">
+                <span class="initiative-name" title="新春ログインボーナス">新春ログインボーナス</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">01/01</span>
+                <span class="initiative-date">01/14</span>
+              </div>
+            </div>
+            <div class="initiative-empty" data-initiative-empty>該当する施策がありません。</div>
+          </section>
+          <section class="initiative-table-card" data-initiative-panel aria-label="2025年施策一覧">
+            <div class="initiative-table-head">
+              <h3 class="initiative-table-title">2025年施策一覧</h3>
+            </div>
+            <div class="initiative-table" data-initiative-list="previous">
+              <div class="initiative-row is-header">
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="name">施策名</span>
+                    <span class="initiative-search-mark" aria-hidden="true"></span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <input class="initiative-filter-input" type="search" data-initiative-name placeholder="名称検索" aria-label="2025年施策名検索">
+                  </div>
+                </div>
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="category">分類</span>
+                    <span class="initiative-filter-caret">▼</span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <div class="initiative-filter-options">
+                      <button class="initiative-filter-option is-active" type="button" data-initiative-category-option data-value="all">すべて</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="event">イベント</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="gacha">ガチャ</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-category-option data-value="product">商品</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="initiative-header-cell" data-initiative-filter-cell>
+                  <button class="initiative-header-button" type="button" data-initiative-filter-toggle aria-expanded="false">
+                    <span class="initiative-filter-state" data-initiative-filter-state="periodMonth">期間</span>
+                    <span class="initiative-filter-caret">▼</span>
+                  </button>
+                  <div class="initiative-filter-popover">
+                    <div class="initiative-filter-options is-month">
+                      <button class="initiative-filter-option is-active" type="button" data-initiative-period-month-option data-value="all">年間</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="1">1月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="2">2月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="3">3月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="4">4月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="5">5月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="6">6月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="7">7月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="8">8月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="9">9月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="10">10月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="11">11月</button>
+                      <button class="initiative-filter-option" type="button" data-initiative-period-month-option data-value="12">12月</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="12/18" data-end="12/31">
+                <span class="initiative-name" title="年末フェス限定ガチャ">年末フェス限定ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">12/18</span>
+                <span class="initiative-date">12/31</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="12/10" data-end="12/24">
+                <span class="initiative-name" title="年末大感謝パック">年末大感謝パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">12/10</span>
+                <span class="initiative-date">12/24</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="12/02" data-end="12/17">
+                <span class="initiative-name" title="聖夜ストーリーイベント">聖夜ストーリーイベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">12/02</span>
+                <span class="initiative-date">12/17</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="11/22" data-end="12/06">
+                <span class="initiative-name" title="前夜祭復刻ガチャ">前夜祭復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">11/22</span>
+                <span class="initiative-date">12/06</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="11/16" data-end="11/30">
+                <span class="initiative-name" title="年末前夜祭ミッション">年末前夜祭ミッション</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">11/16</span>
+                <span class="initiative-date">11/30</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="11/01" data-end="11/15">
+                <span class="initiative-name" title="前夜祭育成セット">前夜祭育成セット</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">11/01</span>
+                <span class="initiative-date">11/15</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="10/18" data-end="10/31">
+                <span class="initiative-name" title="ハロウィン限定販売">ハロウィン限定販売</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">10/18</span>
+                <span class="initiative-date">10/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="10/11" data-end="10/27">
+                <span class="initiative-name" title="ハロウィン討伐イベント">ハロウィン討伐イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">10/11</span>
+                <span class="initiative-date">10/27</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="10/03" data-end="10/17">
+                <span class="initiative-name" title="ハロウィン復刻ガチャ">ハロウィン復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">10/03</span>
+                <span class="initiative-date">10/17</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="09/18" data-end="09/30">
+                <span class="initiative-name" title="コラボ後半限定ガチャ">コラボ後半限定ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">09/18</span>
+                <span class="initiative-date">09/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="09/05" data-end="09/25">
+                <span class="initiative-name" title="大型コラボイベント">大型コラボイベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">09/05</span>
+                <span class="initiative-date">09/25</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="09/01" data-end="09/12">
+                <span class="initiative-name" title="コラボ記念販売">コラボ記念販売</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">09/01</span>
+                <span class="initiative-date">09/12</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="08/23" data-end="08/31">
+                <span class="initiative-name" title="夏季復刻応援パック">夏季復刻応援パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">08/23</span>
+                <span class="initiative-date">08/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="08/09" data-end="08/22">
+                <span class="initiative-name" title="夏季復刻イベント">夏季復刻イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">08/09</span>
+                <span class="initiative-date">08/22</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="08/01" data-end="08/08">
+                <span class="initiative-name" title="夏休み復刻ガチャ">夏休み復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">08/01</span>
+                <span class="initiative-date">08/08</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="07/23" data-end="07/31">
+                <span class="initiative-name" title="水着追い込みセット">水着追い込みセット</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">07/23</span>
+                <span class="initiative-date">07/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="07/14" data-end="07/28">
+                <span class="initiative-name" title="水着後半チャレンジ">水着後半チャレンジ</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">07/14</span>
+                <span class="initiative-date">07/28</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="07/03" data-end="07/22">
+                <span class="initiative-name" title="水着限定ガチャ">水着限定ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">07/03</span>
+                <span class="initiative-date">07/22</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="06/18" data-end="06/30">
+                <span class="initiative-name" title="2周年記念パック">2周年記念パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">06/18</span>
+                <span class="initiative-date">06/30</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="06/10" data-end="06/30">
+                <span class="initiative-name" title="2周年フェスガチャ">2周年フェスガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">06/10</span>
+                <span class="initiative-date">06/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="06/01" data-end="06/09">
+                <span class="initiative-name" title="2周年カウントダウン">2周年カウントダウン</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">06/01</span>
+                <span class="initiative-date">06/09</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="05/17" data-end="05/31">
+                <span class="initiative-name" title="復帰者限定復刻ガチャ">復帰者限定復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">05/17</span>
+                <span class="initiative-date">05/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="05/01" data-end="05/13">
+                <span class="initiative-name" title="GW復帰ログボ">GW復帰ログボ</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">05/01</span>
+                <span class="initiative-date">05/13</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="04/27" data-end="05/06">
+                <span class="initiative-name" title="GW石増量パック">GW石増量パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">04/27</span>
+                <span class="initiative-date">05/06</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="04/16" data-end="04/30">
+                <span class="initiative-name" title="レイド討伐支援パック">レイド討伐支援パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">04/16</span>
+                <span class="initiative-date">04/30</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="04/08" data-end="04/24">
+                <span class="initiative-name" title="高難度レイドイベント">高難度レイドイベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">04/08</span>
+                <span class="initiative-date">04/24</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="04/01" data-end="04/07">
+                <span class="initiative-name" title="春季ステップアップガチャ">春季ステップアップガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">04/01</span>
+                <span class="initiative-date">04/07</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="03/22" data-end="03/31">
+                <span class="initiative-name" title="新章公開記念パック">新章公開記念パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">03/22</span>
+                <span class="initiative-date">03/31</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="03/12" data-end="03/31">
+                <span class="initiative-name" title="新章公開記念ガチャ">新章公開記念ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">03/12</span>
+                <span class="initiative-date">03/31</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="03/01" data-end="03/11">
+                <span class="initiative-name" title="新章予告ミッション">新章予告ミッション</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">03/01</span>
+                <span class="initiative-date">03/11</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="02/07" data-end="02/19">
+                <span class="initiative-name" title="育成応援パック">育成応援パック</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">02/07</span>
+                <span class="initiative-date">02/19</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="02/06" data-end="02/20">
+                <span class="initiative-name" title="バレンタイン復刻ガチャ">バレンタイン復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">02/06</span>
+                <span class="initiative-date">02/20</span>
+              </div>
+              <div class="initiative-row" data-category="event" data-start="02/01" data-end="02/06">
+                <span class="initiative-name" title="バレンタイン準備イベント">バレンタイン準備イベント</span>
+                <span class="initiative-type is-event">イベント</span>
+                <span class="initiative-date">02/01</span>
+                <span class="initiative-date">02/06</span>
+              </div>
+              <div class="initiative-row" data-category="gacha" data-start="01/18" data-end="01/31">
+                <span class="initiative-name" title="新春限定復刻ガチャ">新春限定復刻ガチャ</span>
+                <span class="initiative-type is-gacha">ガチャ</span>
+                <span class="initiative-date">01/18</span>
+                <span class="initiative-date">01/31</span>
+              </div>
+              <div class="initiative-row" data-category="product" data-start="01/01" data-end="01/15">
+                <span class="initiative-name" title="新春福袋セット">新春福袋セット</span>
+                <span class="initiative-type is-product">商品</span>
+                <span class="initiative-date">01/01</span>
+                <span class="initiative-date">01/15</span>
+              </div>
+            </div>
+            <div class="initiative-empty" data-initiative-empty>該当する施策がありません。</div>
+          </section>
+        </div>
+      </section>
+
+    </main>
+  </div>
+  <div class="driver-expand-modal" id="driverExpandModal" aria-hidden="true">
+    <section class="driver-modal-panel" role="dialog" aria-modal="true" aria-labelledby="driverModalTitle">
+      <div class="driver-modal-head">
+        <div>
+          <h2 class="driver-modal-title" id="driverModalTitle">販売施策別 実績/予測差</h2>
+          <p class="driver-modal-copy">サマリーで気になった販売物・ガチャを全件表示。下振れ施策は追加訴求や改善確認、上振れ施策は好調要因の横展開候補として見る。</p>
+        </div>
+        <button class="driver-modal-close" id="driverExpandClose" type="button" aria-label="拡大表示を閉じる">×</button>
+      </div>
+      <div class="driver-modal-toolbar">
+        <div class="driver-modal-stats" id="driverModalStats" aria-label="販売施策サマリー"></div>
+        <div class="driver-modal-controls">
+          <button class="driver-filter-button is-active" type="button" data-driver-filter="all" aria-pressed="true">すべて</button>
+          <button class="driver-filter-button" type="button" data-driver-filter="down" aria-pressed="false">下振れ</button>
+          <button class="driver-filter-button" type="button" data-driver-filter="up" aria-pressed="false">上振れ</button>
+          <select class="driver-sort-select" id="driverSortSelect" aria-label="販売施策の並び替え">
+            <option value="date">実装日順</option>
+            <option value="down">下振れ優先</option>
+            <option value="up">上振れ優先</option>
+            <option value="abs">差分大きい順</option>
+            <option value="current">実績大きい順</option>
+          </select>
+        </div>
+      </div>
+      <div class="driver-modal-body" id="driverModalBody"></div>
+    </section>
+  </div>
+  <div class="chart-tooltip" id="chartTooltip" aria-hidden="true"></div>
+
+  <script type="text/plain" id="legacyMockScript">
+    const dashboardData = {
+      revenueDaily: [2.2, 2.4, 2.8, 2.5, 3.2, 3.5, 2.9, 2.4, 3.1, 2.6, 3.4, 2.7, 2.3, 2.0, 2.8, 2.1, 1.8, 2.4, 2.9, 2.5, 2.1, 2.6, 1.9, 2.3, 1.7, 2.2, 1.8, 1.6, 1.5, 1.9],
+      revenueTargetDaily: [2.0, 2.1, 2.3, 2.4, 2.7, 2.9, 2.8, 2.9, 3.0, 3.0, 3.1, 3.1, 3.0, 3.0, 3.1, 3.0, 2.9, 2.9, 2.9, 2.8, 2.7, 2.6, 2.6, 2.5, 2.5, 2.5, 2.4, 2.4, 2.4, 2.4],
+      dmauTrend: [19320, 19580, 19740, 19890, 19660, 20040, 20120, 19940, 19810, 20020, 20160, 20340, 20210, 20420, 20560, 20380, 20220, 20440, 20510, 20480, 20340, 20290, 20180, 20310, 20460, 20510, 20380, 20260, 20190, 20240],
+      newUsersTrend: [76, 84, 82, 95, 79, 88, 94, 91, 78, 89, 92, 101, 96, 107, 110, 97, 94, 102, 105, 99, 90, 87, 83, 91, 94, 98, 95, 90, 88, 92],
+      churnUsersTrend: [68, 72, 70, 73, 76, 77, 80, 79, 74, 81, 84, 85, 83, 86, 90, 88, 84, 86, 92, 90, 87, 85, 82, 84, 86, 88, 87, 84, 85, 88],
+      newUsersMonthlyAverage: 2720,
+      churnUsersMonthlyAverage: 2320,
+      walletTrend: [10.6, 10.8, 10.9, 11.0, 11.2, 11.1, 11.3, 11.5, 11.6, 11.7, 11.8, 11.9, 11.7, 11.6, 11.8, 11.9, 12.0, 12.1, 12.2, 12.0, 11.9, 12.1, 12.3, 12.4, 12.5, 12.4, 12.3, 12.5, 12.6, 12.7],
+      stoneUseTrend: [1600, 4100, 1200, 5200, 2400, 1800, 4700, 2100, 3300, 1500, 5400, 2600, 1700, 4900, 2300, 3600, 1400, 5600, 2500, 1900, 5100, 2200, 3400, 1600, 5300, 2400, 3700, 1800, 5000, 2100],
+      snsPostsTrend: [3180, 3360, 3290, 3510, 3440, 3620, 3550, 3730, 3610, 3820, 3740, 3910, 3790, 4010, 3890, 4080, 3950, 3890, 3810, 3740, 3790, 3860, 3810, 3920, 3870, 3990, 3940, 3850, 3800, 3890],
+      snsPositiveTrend: [27.8, 26.9, 27.5, 26.1, 26.8, 25.9, 25.1, 24.3, 24.9, 24.1, 23.7, 22.9, 23.4, 22.8, 22.2, 21.6, 22.0, 21.4, 21.1, 20.8, 21.4, 22.0, 21.6, 22.5, 22.1, 23.0, 23.6, 23.1, 23.9, 24.8],
+      snsNegativeTrend: [30.8, 31.7, 31.2, 32.4, 33.0, 34.1, 33.5, 34.9, 35.6, 36.3, 35.8, 37.1, 37.7, 38.4, 37.9, 39.2, 39.8, 40.3, 39.7, 40.6, 39.9, 39.3, 39.8, 38.9, 39.4, 38.6, 38.1, 38.7, 39.0, 39.1],
+      loadTimeTrend: [2.18, 2.14, 2.12, 2.16, 2.19, 2.22, 2.17, 2.14, 2.11, 2.15, 2.18, 2.24, 2.21, 2.19, 2.17, 2.16, 2.18, 2.34, 2.28, 2.33, 2.36, 2.34, 2.31, 2.28, 2.24, 2.22, 2.19, 2.17, 2.15, 2.16],
+      walletYearlyAverage: 11.4,
+      stoneUseMonthlyAverage: 84200,
+      payerRate: 3.0,
+      payerRateYearlyAverage: 4.5,
+      課金者1人あたりの単価: 5300,
+      課金者1人あたりの単価YearlyAverage: 7950,
+      snsPostsMonthlyAverage: 2650,
+      snsPositive: 24.8,
+      snsNegative: 39.6,
+      loadThreshold: 2.3
+    };
+    const reportDay = 18;
+    const visibleData = {
+      ...dashboardData,
+      revenueDaily: dashboardData.revenueDaily.slice(0, reportDay),
+      revenueTargetDaily: dashboardData.revenueTargetDaily.slice(0, reportDay),
+      dmauTrend: dashboardData.dmauTrend.slice(0, reportDay),
+      newUsersTrend: dashboardData.newUsersTrend.slice(0, reportDay),
+      churnUsersTrend: dashboardData.churnUsersTrend.slice(0, reportDay),
+      walletTrend: dashboardData.walletTrend.slice(0, reportDay),
+      stoneUseTrend: dashboardData.stoneUseTrend.slice(0, reportDay),
+      snsPostsTrend: dashboardData.snsPostsTrend.slice(0, reportDay),
+      snsPositiveTrend: dashboardData.snsPositiveTrend.slice(0, reportDay),
+      snsNegativeTrend: dashboardData.snsNegativeTrend.slice(0, reportDay),
+      loadTimeTrend: dashboardData.loadTimeTrend.slice(0, reportDay)
+    };
+
+    const sum = (values) => values.reduce((total, value) => total + value, 0);
+    const cumulative = (values) => values.reduce((acc, value, index) => {
+      acc.push((acc[index - 1] || 0) + value);
+      return acc;
+    }, []);
+    const average = (values) => values.length ? sum(values) / values.length : 0;
+    const last = (values) => values[values.length - 1];
+    const formatNumber = (value) => Math.round(value).toLocaleString("ja-JP");
+    const formatCurrencyInt = (valueInMillions) => `¥${Math.round(valueInMillions * 1000000).toLocaleString("ja-JP")}`;
+    const formatPercent = (value, digits = 1) => `${value.toFixed(digits)}%`;
+    const formatSignedPercent = (value, digits = 1) => `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
+    const formatSignedNumber = (value) => `${value >= 0 ? "+" : ""}${Math.round(value).toLocaleString("ja-JP")}`;
+    const formatYen = (value) => `¥${Math.round(value).toLocaleString("ja-JP")}`;
+    const formatSeconds = (value) => `${value.toFixed(2)}s`;
+    const round = (value, digits = 2) => Number(value.toFixed(digits));
+    const axisFontFamily = "'Noto Sans JP','Yu Gothic UI','Yu Gothic','Hiragino Sans','Meiryo',sans-serif";
+    const tooltipLabel = (index, labelSet = null) => (labelSet && labelSet[index]) || labels[index] || `4/${index + 1}`;
+    const tooltipValue = (value, formatter) => (value === null || value === undefined ? "未確定" : formatter(value));
+    const markerRadius = 2.4;
+    const buildNiceAxis = (maxValue, segments = 3) => {
+      const safeMax = Math.max(maxValue, 1);
+      const rawStep = safeMax / segments;
+      const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+      const normalized = rawStep / magnitude;
+      const scales = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+      const niceNormalized = scales.find((scale) => scale >= normalized) || 10;
+      const step = niceNormalized * magnitude;
+      return { step, max: step * segments, segments };
+    };
+    const formatCurrencyAxis = (valueInMillions) => {
+      if (valueInMillions <= 0) return "0";
+      if (valueInMillions < 100) {
+        return `${Math.round(valueInMillions * 100).toLocaleString("ja-JP")}万`;
+      }
+      const valueInOku = valueInMillions / 100;
+      return `${valueInOku % 1 === 0 ? valueInOku.toFixed(0) : valueInOku.toFixed(1)}億`;
+    };
+    const formatCompactNumberAxis = (value) => {
+      if (value <= 0) return "0";
+      if (value >= 10000) {
+        const valueInMan = value / 10000;
+        return `${valueInMan % 1 === 0 ? valueInMan.toFixed(0) : valueInMan.toFixed(1)}万`;
+      }
+      return formatNumber(value);
+    };
+    const buildPointCircles = (points, { radius = markerRadius, fill, stroke = "none", strokeWidth = 0, opacity = 1 } = {}) => (
+      points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${opacity}" />`).join("")
+    );
+    const buildNiceRangeAxis = (minValue, maxValue, segments = 4) => {
+      if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+        return { min: 0, max: 1, step: 0.25, segments };
+      }
+      if (minValue === maxValue) {
+        const pad = Math.max(Math.abs(minValue) * 0.03, 1);
+        minValue -= pad;
+        maxValue += pad;
+      }
+      const range = maxValue - minValue;
+      const rawStep = range / segments;
+      const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+      const normalized = rawStep / magnitude;
+      const scales = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+      const niceNormalized = scales.find((scale) => scale >= normalized) || 10;
+      const step = niceNormalized * magnitude;
+      const min = Math.floor(minValue / step) * step;
+      const max = Math.ceil(maxValue / step) * step;
+      return { min, max, step, segments: Math.round((max - min) / step) };
+    };
+    const encodeTooltip = (text) => encodeURIComponent(text);
+    const buildTooltipTarget = ({ x, y, width, height, tooltip }) => (
+      `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="transparent" pointer-events="all" class="tooltip-hotspot" data-tooltip="${encodeTooltip(tooltip)}"></rect>`
+    );
+    const chartTooltip = document.getElementById("chartTooltip");
+    const escapeTooltipHtml = (text) => text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    const renderTooltip = (encoded) => {
+      if (!chartTooltip) return;
+      if (chartTooltip.dataset.tooltip === encoded) return;
+      const decoded = decodeURIComponent(encoded || "");
+      chartTooltip.dataset.tooltip = encoded || "";
+      chartTooltip.innerHTML = decoded
+        .split("\n")
+        .map((line) => `<div>${escapeTooltipHtml(line)}</div>`)
+        .join("");
+    };
+    const positionChartTooltip = (event) => {
+      if (!chartTooltip) return;
+      const offset = 14;
+      const rect = chartTooltip.getBoundingClientRect();
+      let left = event.clientX + offset;
+      let top = event.clientY + offset;
+      if (left + rect.width + 12 > window.innerWidth) left = event.clientX - rect.width - offset;
+      if (top + rect.height + 12 > window.innerHeight) top = event.clientY - rect.height - offset;
+      chartTooltip.style.left = `${Math.max(12, left)}px`;
+      chartTooltip.style.top = `${Math.max(12, top)}px`;
+    };
+    const hideChartTooltip = () => {
+      if (!chartTooltip) return;
+      chartTooltip.classList.remove("is-visible");
+      chartTooltip.setAttribute("aria-hidden", "true");
+      chartTooltip.dataset.tooltip = "";
+    };
+    const activateChartTooltip = (event) => {
+      const hotspot = event.target.closest(".tooltip-hotspot");
+      if (!hotspot || !chartTooltip) {
+        hideChartTooltip();
+        return;
+      }
+      renderTooltip(hotspot.getAttribute("data-tooltip") || "");
+      chartTooltip.classList.add("is-visible");
+      chartTooltip.setAttribute("aria-hidden", "false");
+      positionChartTooltip(event);
+    };
+    document.addEventListener("pointerover", activateChartTooltip);
+    document.addEventListener("pointermove", activateChartTooltip);
+    document.addEventListener("pointerleave", hideChartTooltip);
+    window.addEventListener("blur", hideChartTooltip);
+    document.addEventListener("scroll", hideChartTooltip, true);
+
+    function buildComboChart({ bars, line, width = 640, height = 240, barColor, lineColor, labels, domainLength = labels.length }) {
+      const padding = { top: 14, right: 6, bottom: 22, left: 40 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const axis = buildNiceAxis(Math.max(...bars, ...line) * 1.03);
+      const maxValue = axis.max;
+      const step = plotWidth / domainLength;
+      const scaleY = (value) => padding.top + plotHeight - (value / maxValue) * plotHeight;
+
+      const grid = Array.from({ length: 4 }, (_, index) => {
+        const y = padding.top + (plotHeight / 3) * index;
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(22,32,51,0.08)" stroke-dasharray="4 6" />`;
+      }).join("");
+      const yLabels = Array.from({ length: axis.segments + 1 }, (_, index) => {
+        const value = axis.max - axis.step * index;
+        const y = padding.top + (plotHeight / axis.segments) * index;
+        return `<text x="${padding.left - 6}" y="${y + 3}" fill="rgba(22,32,51,0.48)" font-size="9.5" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="end">${formatCurrencyAxis(value)}</text>`;
+      }).join("");
+
+      const actualPoints = bars.map((value, index) => {
+        const x = padding.left + step * index + step / 2;
+        const y = scaleY(value);
+        return { x, y };
+      });
+      const actualPath = actualPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+
+      const targetPoints = line.map((value, index) => {
+        const x = padding.left + step * index + step / 2;
+        const y = scaleY(value);
+        return { x, y };
+      });
+      const targetPath = targetPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      const actualDots = buildPointCircles(actualPoints, { fill: barColor });
+      const targetDots = buildPointCircles(targetPoints, { fill: lineColor, opacity: 0.82 });
+
+      const labelIndexes = buildAxisLabelIndexes(domainLength);
+
+      const xLabels = labelIndexes
+        .map((actualIndex) => {
+          const x = padding.left + step * actualIndex + step / 2;
+          const label = labels[actualIndex];
+          return `<text x="${x}" y="${height - 8}" fill="rgba(22,32,51,0.5)" font-size="10" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="middle">${label}</text>`;
+        }).join("");
+
+      const hoverBands = Array.from({ length: domainLength }, (_, index) => {
+        const x = padding.left + step * index;
+        const actualValue = index < bars.length ? bars[index] : null;
+        const targetValue = index < line.length ? line[index] : null;
+        const title = [
+          tooltipLabel(index, labels),
+          `累計売上 ${tooltipValue(actualValue, formatCurrencyInt)}`,
+          `累計目標 ${tooltipValue(targetValue, formatCurrencyInt)}`
+        ].join("\n");
+        return buildTooltipTarget({ x, y: padding.top, width: step, height: plotHeight, tooltip: title });
+      }).join("");
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" role="img" aria-label="売上推移">
+          ${grid}
+          ${yLabels}
+          <path d="${targetPath}" fill="none" stroke="${lineColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="${actualPath}" fill="none" stroke="${barColor}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+          ${targetDots}
+          ${actualDots}
+          ${xLabels}
+          ${hoverBands}
+        </svg>
+      `;
+      return svg.replace('width="100%" height="100%" role="img"', 'width="100%" height="100%" preserveAspectRatio="none" style="font-family:\'Noto Sans JP\',\'Yu Gothic UI\',\'Yu Gothic\',\'Hiragino Sans\',\'Meiryo\',sans-serif" role="img"');
+    }
+
+    function buildPlayerChart({ dmau, newUsers, churn, width = 640, height = 240, labels, domainLength = labels.length }) {
+      const padding = { top: 18, right: 38, bottom: 28, left: 36 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const dmauMinRaw = Math.min(...dmau);
+      const dmauMaxRaw = Math.max(...dmau);
+      const dmauPadding = Math.max((dmauMaxRaw - dmauMinRaw) * 0.18, dmauMaxRaw * 0.003);
+      const dmauAxis = buildNiceRangeAxis(dmauMinRaw - dmauPadding, dmauMaxRaw + dmauPadding);
+      const secondaryAxis = buildNiceAxis(Math.max(...newUsers, ...churn) * 1.02);
+      const secondaryMax = secondaryAxis.max;
+      const step = plotWidth / domainLength;
+      const groupWidth = Math.max(12, step * 0.56);
+      const innerBar = groupWidth / 2 - 2;
+      const dmauRange = dmauAxis.max - dmauAxis.min || 1;
+      const yDmau = (value) => padding.top + plotHeight - ((value - dmauAxis.min) / dmauRange) * plotHeight;
+      const ySecondary = (value) => padding.top + plotHeight - (value / secondaryMax) * plotHeight;
+
+      const grid = Array.from({ length: 4 }, (_, index) => {
+        const y = padding.top + (plotHeight / 3) * index;
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(22,32,51,0.08)" stroke-dasharray="4 6" />`;
+      }).join("");
+      const yLabels = Array.from({ length: dmauAxis.segments + 1 }, (_, index) => {
+        const value = dmauAxis.max - dmauAxis.step * index;
+        const y = padding.top + (plotHeight / dmauAxis.segments) * index;
+        return `<text x="${padding.left - 6}" y="${y + 3}" fill="rgba(22,32,51,0.48)" font-size="9.5" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="end">${formatCompactNumberAxis(value)}</text>`;
+      }).join("");
+      const secondaryLabels = Array.from({ length: secondaryAxis.segments + 1 }, (_, index) => {
+        const value = secondaryAxis.max - secondaryAxis.step * index;
+        const y = padding.top + (plotHeight / secondaryAxis.segments) * index;
+        return `<text x="${width - padding.right + 6}" y="${y + 3}" fill="rgba(22,32,51,0.48)" font-size="9.5" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="start">${formatNumber(value)}</text>`;
+      }).join("");
+
+      const bars = newUsers.map((value, index) => {
+        const x = padding.left + step * index + (step - groupWidth) / 2;
+        const baseY = padding.top + plotHeight;
+        const y1 = ySecondary(value);
+        const y2 = ySecondary(churn[index]);
+        return `
+          <rect x="${x}" y="${y1}" width="${innerBar}" height="${baseY - y1}" rx="6" fill="rgba(63,138,77,0.74)" />
+          <rect x="${x + innerBar + 4}" y="${y2}" width="${innerBar}" height="${baseY - y2}" rx="6" fill="rgba(196,77,92,0.7)" />
+        `;
+      }).join("");
+
+      const dmauPoints = dmau.map((value, index) => {
+        const x = padding.left + step * index + step / 2;
+        const y = yDmau(value);
+        return { x, y };
+      });
+      const linePath = dmauPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      const dmauDots = buildPointCircles(dmauPoints, { fill: "var(--blue-deep)" });
+
+      const labelIndexes = buildAxisLabelIndexes(domainLength);
+
+      const xLabels = labelIndexes
+        .map((actualIndex) => {
+          const x = padding.left + step * actualIndex + step / 2;
+          const label = labels[actualIndex];
+          return `<text x="${x}" y="${height - 8}" fill="rgba(22,32,51,0.5)" font-size="10" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="middle">${label}</text>`;
+        }).join("");
+
+      const hoverBands = Array.from({ length: domainLength }, (_, index) => {
+        const x = padding.left + step * index;
+        const dmauValue = index < dmau.length ? dmau[index] : null;
+        const newValue = index < newUsers.length ? newUsers[index] : null;
+        const churnValue = index < churn.length ? churn[index] : null;
+        const title = [
+          tooltipLabel(index, labels),
+          `rDAU ${tooltipValue(dmauValue, formatNumber)}`,
+          `新規ユーザー数 ${tooltipValue(newValue, formatNumber)}`,
+          `既存顧客離脱数 ${tooltipValue(churnValue, formatNumber)}`
+        ].join("\n");
+        return buildTooltipTarget({ x, y: padding.top, width: step, height: plotHeight, tooltip: title });
+      }).join("");
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none" style="font-family:'Noto Sans JP','Yu Gothic UI','Yu Gothic','Hiragino Sans','Meiryo',sans-serif" role="img" aria-label="rDAU推移">
+          ${grid}
+          ${yLabels}
+          ${secondaryLabels}
+          ${bars}
+          <path d="${linePath}" fill="none" stroke="var(--blue-deep)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+          ${dmauDots}
+          ${xLabels}
+          ${hoverBands}
+        </svg>
+      `;
+      return svg;
+    }
+
+    function buildLineCompareChart({ actual, target, labels, width = 760, height = 152 }) {
+      const padding = { top: 12, right: 10, bottom: 28, left: 10 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const maxValue = Math.max(...actual, ...target) * 1.08;
+      const step = plotWidth / actual.length;
+      const scaleY = (value) => padding.top + plotHeight - (value / maxValue) * plotHeight;
+      const labelIndexes = buildAxisLabelIndexes(labels.length);
+
+      const grid = Array.from({ length: 4 }, (_, index) => {
+        const y = padding.top + (plotHeight / 3) * index;
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(22,32,51,0.08)" stroke-dasharray="4 6" />`;
+      }).join("");
+
+      const buildPoints = (values) => values.map((value, index) => {
+        const x = padding.left + step * index + step / 2;
+        const y = scaleY(value);
+        return { x, y };
+      });
+      const buildPath = (points) => points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      const actualPoints = buildPoints(actual);
+      const targetPoints = buildPoints(target);
+      const actualDots = buildPointCircles(actualPoints, { fill: "var(--blue-deep)" });
+      const targetDots = buildPointCircles(targetPoints, { fill: "rgba(35,75,186,0.34)", opacity: 0.9 });
+
+      const xLabels = labelIndexes.map((actualIndex) => {
+        const x = padding.left + step * actualIndex + step / 2;
+        return `<text x="${x}" y="${height - 8}" fill="rgba(22,32,51,0.5)" font-size="10" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="middle">${labels[actualIndex]}</text>`;
+      }).join("");
+
+      const hoverBands = Array.from({ length: labels.length }, (_, index) => {
+        const x = padding.left + step * index;
+        const actualValue = index < actual.length ? actual[index] : null;
+        const targetValue = index < target.length ? target[index] : null;
+        const title = [
+          tooltipLabel(index, labels),
+          `累計実績 ${tooltipValue(actualValue, formatCurrencyInt)}`,
+          `累計目標 ${tooltipValue(targetValue, formatCurrencyInt)}`
+        ].join("\n");
+        return buildTooltipTarget({ x, y: padding.top, width: step, height: plotHeight, tooltip: title });
+      }).join("");
+
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="累計売上と累計目標の比較">
+          ${grid}
+          <path d="${buildPath(targetPoints)}" fill="none" stroke="rgba(35,75,186,0.34)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="${buildPath(actualPoints)}" fill="none" stroke="var(--blue-deep)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          ${targetDots}
+          ${actualDots}
+          ${xLabels}
+          ${hoverBands}
+        </svg>
+      `;
+      return svg.replace('width="100%" height="100%" role="img"', 'width="100%" height="100%" preserveAspectRatio="none" role="img"');
+    }
+
+    function buildGroupedBarsChart({ actual, target, labels, width = 760, height = 152 }) {
+      const padding = { top: 12, right: 10, bottom: 28, left: 10 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const maxValue = Math.max(...actual, ...target) * 1.14;
+      const step = plotWidth / actual.length;
+      const groupWidth = Math.max(12, step * 0.58);
+      const barWidth = groupWidth / 2 - 2;
+      const scaleY = (value) => padding.top + plotHeight - (value / maxValue) * plotHeight;
+      const labelIndexes = buildAxisLabelIndexes(labels.length);
+
+      const grid = Array.from({ length: 4 }, (_, index) => {
+        const y = padding.top + (plotHeight / 3) * index;
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(22,32,51,0.08)" stroke-dasharray="4 6" />`;
+      }).join("");
+
+      const bars = actual.map((value, index) => {
+        const x = padding.left + step * index + (step - groupWidth) / 2;
+        const yActual = scaleY(value);
+        const yTarget = scaleY(target[index]);
+        const baseY = padding.top + plotHeight;
+        return `
+          <rect x="${x}" y="${yActual}" width="${barWidth}" height="${baseY - yActual}" rx="5" fill="rgba(35,75,186,0.88)" />
+          <rect x="${x + barWidth + 4}" y="${yTarget}" width="${barWidth}" height="${baseY - yTarget}" rx="5" fill="rgba(35,75,186,0.24)" />
+        `;
+      }).join("");
+
+      const xLabels = labelIndexes.map((actualIndex) => {
+        const x = padding.left + step * actualIndex + step / 2;
+        return `<text x="${x}" y="${height - 8}" fill="rgba(22,32,51,0.5)" font-size="10" font-weight="500" font-family="${axisFontFamily}" letter-spacing="-0.02em" text-anchor="middle">${labels[actualIndex]}</text>`;
+      }).join("");
+
+      const hoverBands = Array.from({ length: labels.length }, (_, index) => {
+        const x = padding.left + step * index;
+        const actualValue = index < actual.length ? actual[index] : null;
+        const targetValue = index < target.length ? target[index] : null;
+        const title = [
+          tooltipLabel(index, labels),
+          `日次実績 ${tooltipValue(actualValue, formatCurrencyInt)}`,
+          `日次目標 ${tooltipValue(targetValue, formatCurrencyInt)}`
+        ].join("\n");
+        return buildTooltipTarget({ x, y: padding.top, width: step, height: plotHeight, tooltip: title });
+      }).join("");
+
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="日別売上と日別目標の比較">
+          ${grid}
+          ${bars}
+          ${xLabels}
+          ${hoverBands}
+        </svg>
+      `;
+      return svg.replace('width="100%" height="100%" role="img"', 'width="100%" height="100%" preserveAspectRatio="none" role="img"');
+    }
+
+    function buildRevenueSplitChart({ actualDaily, targetDaily, labels }) {
+      const actualCumulative = cumulative(actualDaily);
+      const targetCumulative = cumulative(targetDaily);
+
+      return `
+        <div class="chart-block">
+          <div class="chart-kicker">累計</div>
+          <div class="sublegend">
+            <span style="color:var(--blue-deep)"><i class="line"></i>累計実績</span>
+            <span style="color:rgba(35,75,186,0.5)"><i class="line"></i>累計目標</span>
+          </div>
+          <div class="chart seamless chart-split">${buildLineCompareChart({ actual: actualCumulative, target: targetCumulative, labels })}</div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-kicker">日次</div>
+          <div class="sublegend">
+            <span><i class="bar" style="background:rgba(35,75,186,0.88)"></i>日次実績</span>
+            <span><i class="bar" style="background:rgba(35,75,186,0.24)"></i>日次目標</span>
+          </div>
+          <div class="chart seamless chart-split">${buildGroupedBarsChart({ actual: actualDaily, target: targetDaily, labels })}</div>
+        </div>
+      `;
+    }
+
+    function buildAxisLabelIndexes(length) {
+      const indexes = [];
+      for (let index = 0; index < length; index += 7) {
+        indexes.push(index);
+      }
+      const lastIndex = length - 1;
+      const finalGap = lastIndex - indexes[indexes.length - 1];
+      if (finalGap <= 2) {
+        indexes[indexes.length - 1] = lastIndex;
+      } else if (indexes[indexes.length - 1] !== lastIndex) {
+        indexes.push(lastIndex);
+      }
+      return indexes;
+    }
+
+    function buildSpark(values, color, { width = 280, height = 72, benchmark = null, benchmarkLabel = "平均", benchmarkColor = "rgba(22,32,51,0.45)", domainLength = values.length } = {}) {
+      const padding = 6;
+      const benchmarkValues = benchmark === null ? [] : [benchmark];
+      const max = Math.max(...values, ...benchmarkValues);
+      const min = Math.min(...values, ...benchmarkValues);
+      const range = max - min || 1;
+      const step = (width - padding * 2) / Math.max(domainLength - 1, 1);
+      const hoverStep = (width - padding * 2) / Math.max(domainLength, 1);
+      const points = values.map((value, index) => {
+        const x = padding + step * index;
+        const y = padding + (height - padding * 2) - ((value - min) / range) * (height - padding * 2);
+        return { x, y };
+      });
+      const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      const area = `${path} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+      const pointDots = buildPointCircles(points, { fill: color, opacity: 0.94 });
+      const benchmarkLine = benchmark === null ? "" : (() => {
+        const y = padding + (height - padding * 2) - ((benchmark - min) / range) * (height - padding * 2);
+        return `<line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="${benchmarkColor}" stroke-width="2" stroke-dasharray="5 5" />`;
+      })();
+      const formatter = typeof benchmark === "number" && benchmark > 100
+        ? formatNumber
+        : (max < 5
+          ? formatSeconds
+          : (max <= 20 ? ((value) => `${round(value, 1).toFixed(1)}万`) : formatNumber));
+      const hoverBands = Array.from({ length: domainLength }, (_, index) => {
+        const x = padding + hoverStep * index;
+        const value = index < values.length ? values[index] : null;
+        const title = [
+          tooltipLabel(index),
+          `値 ${tooltipValue(value, formatter)}`,
+          benchmark === null ? null : `${benchmarkLabel} ${formatter(benchmark)}`
+        ].filter(Boolean).join("\n");
+        return buildTooltipTarget({ x, y: 0, width: hoverStep, height, tooltip: title });
+      }).join("");
+      return `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="sparkline">
+          ${benchmarkLine}
+          <path d="${area}" fill="${color.replace("1)", "0.16)")}" />
+          <path d="${path}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
+          ${pointDots}
+          ${hoverBands}
+        </svg>
+      `;
+    }
+
+    function buildSnsSpark(posts, positive, negative, width = 280, height = 72, domainLength = posts.length, postsAverage = null) {
+      const padding = { top: 6, right: 6, bottom: 6, left: 6 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const step = plotWidth / domainLength;
+      const postMax = Math.max(...posts, ...(postsAverage === null ? [] : [postsAverage])) * 1.08;
+      const ratioMax = 100;
+      const barWidth = Math.max(3, step * 0.52);
+      const yPosts = (value) => padding.top + plotHeight - (value / postMax) * plotHeight;
+      const yRatio = (value) => padding.top + plotHeight - (value / ratioMax) * plotHeight;
+      const averageLine = postsAverage === null ? "" : (() => {
+        const y = yPosts(postsAverage);
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="rgba(35,75,186,0.72)" stroke-width="1.8" stroke-dasharray="5 5" />`;
+      })();
+
+      const bars = posts.map((value, index) => {
+        const x = padding.left + step * index + (step - barWidth) / 2;
+        const y = yPosts(value);
+        return `
+          <rect x="${x}" y="${y}" width="${barWidth}" height="${padding.top + plotHeight - y}" rx="3" fill="rgba(53,108,255,0.32)" />
+          <rect x="${x}" y="${y}" width="${barWidth}" height="${padding.top + plotHeight - y}" rx="3" fill="none" stroke="rgba(53,108,255,0.52)" stroke-width="0.8" />
+        `;
+      }).join("");
+
+      const buildPoints = (values) => values.map((value, index) => {
+        const x = padding.left + step * index + step / 2;
+        const y = yRatio(value);
+        return { x, y };
+      });
+      const buildPath = (points) => points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+
+      const positivePoints = buildPoints(positive);
+      const negativePoints = buildPoints(negative);
+      const positivePath = buildPath(positivePoints);
+      const negativePath = buildPath(negativePoints);
+      const positiveDots = buildPointCircles(positivePoints, { fill: "rgba(63,138,77,1)" });
+      const negativeDots = buildPointCircles(negativePoints, { fill: "rgba(196,77,92,1)" });
+      const hoverBands = Array.from({ length: domainLength }, (_, index) => {
+        const x = padding.left + step * index;
+        const postsValue = index < posts.length ? posts[index] : null;
+        const positiveValue = index < positive.length ? positive[index] : null;
+        const negativeValue = index < negative.length ? negative[index] : null;
+        const title = [
+          tooltipLabel(index),
+          `SNS投稿数 ${tooltipValue(postsValue, formatNumber)}`,
+          postsAverage === null ? null : `直近12ヵ月平均 ${tooltipValue(postsAverage, formatNumber)}`,
+          `ポジ比率 ${tooltipValue(positiveValue, (value) => formatPercent(value, 1))}`,
+          `ネガ比率 ${tooltipValue(negativeValue, (value) => formatPercent(value, 1))}`
+        ].filter(Boolean).join("\n");
+        return buildTooltipTarget({ x, y: 0, width: step, height, tooltip: title });
+      }).join("");
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="SNS投稿数とポジネガ割合の推移">
+          ${bars}
+          ${averageLine}
+          <line x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${width - padding.right}" y2="${padding.top + plotHeight}" stroke="rgba(53,108,255,0.18)" stroke-width="1" />
+          <path d="${positivePath}" fill="none" stroke="rgba(63,138,77,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="${negativePath}" fill="none" stroke="rgba(196,77,92,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          ${positiveDots}
+          ${negativeDots}
+          ${hoverBands}
+        </svg>
+      `;
+    }
+
+    const monthLength = 30;
+    const labels = Array.from({ length: monthLength }, (_, index) => `4/${index + 1}`);
+    const revenueActualSeries = cumulative(visibleData.revenueDaily);
+    const revenueTargetSeries = cumulative(dashboardData.revenueTargetDaily);
+    const revenueActual = last(revenueActualSeries);
+    const revenueTargetToDate = last(cumulative(visibleData.revenueTargetDaily));
+    const revenueMonthTarget = last(revenueTargetSeries);
+    const revenueTarget = revenueMonthTarget;
+    const revenueAchievement = revenueActual / revenueTargetToDate * 100;
+    const revenueVariance = revenueActual - revenueTargetToDate;
+    const revenuePrevWeek = sum(visibleData.revenueDaily.slice(-7));
+    const revenueWeekBefore = sum(visibleData.revenueDaily.slice(-14, -7));
+    const revenueTrend = ((revenuePrevWeek - revenueWeekBefore) / revenueWeekBefore) * 100;
+
+    const dmauCurrent = last(visibleData.dmauTrend);
+    const dmauMonthStart = visibleData.dmauTrend[0];
+    const dmauMonthDeltaCount = dmauCurrent - dmauMonthStart;
+    const newUsersCurrent = sum(visibleData.newUsersTrend);
+    const churnCurrent = sum(visibleData.churnUsersTrend);
+    const newUsersMonthStart = 0;
+    const churnMonthStart = 0;
+
+    document.getElementById("revenueValue").textContent = formatCurrencyInt(revenueActual);
+    document.getElementById("revenueHint").textContent = `月次目標 ${formatCurrencyInt(revenueMonthTarget)}`;
+    document.getElementById("achievementValue").textContent = `${revenueVariance >= 0 ? "+" : "-"}${formatCurrencyInt(Math.abs(revenueVariance))}`;
+    document.getElementById("varianceValue").textContent = formatPercent(visibleData.payerRate, 1);
+    document.getElementById("revenueTrendValue").textContent = formatYen(visibleData.課金者1人あたりの単価);
+    document.getElementById("payerRateAverage").textContent = `直近12ヵ月平均 ${formatPercent(visibleData.payerRateYearlyAverage, 1)}`;
+    document.getElementById("課金者1人あたりの単価Average").textContent = `直近12ヵ月平均 ${formatYen(visibleData.課金者1人あたりの単価YearlyAverage)}`;
+
+    document.getElementById("dmauValue").textContent = formatNumber(dmauCurrent);
+    document.getElementById("dmauHint").textContent = `月初比 ${formatSignedNumber(dmauMonthDeltaCount)}`;
+    document.getElementById("newUsersHint").textContent = `月初比 ${formatNumber(newUsersCurrent - newUsersMonthStart)}`;
+    document.getElementById("churnUsersHint").textContent = `月初比 ${formatNumber(churnCurrent - churnMonthStart)}`;
+    document.getElementById("newUsersAverage").textContent = `直近12ヵ月平均 ${formatNumber(visibleData.newUsersMonthlyAverage)}`;
+    document.getElementById("churnUsersAverage").textContent = `直近12ヵ月平均 ${formatNumber(visibleData.churnUsersMonthlyAverage)}`;
+    const headChips = document.querySelector(".head .chips");
+    if (headChips && !document.querySelector(".head-actions")) {
+      const headActions = document.createElement("div");
+      headActions.className = "head-actions";
+      const controlRow = document.createElement("div");
+      controlRow.className = "control-row";
+      controlRow.innerHTML = `
+        <div class="toggle-group" aria-label="範囲選択">
+          <button type="button" class="toggle-button is-active">今月</button>
+          <button type="button" class="toggle-button">前年比</button>
+        </div>
+        <div class="toggle-group" aria-label="粒度選択">
+          <button type="button" class="toggle-button is-active">日次</button>
+          <button type="button" class="toggle-button">月次</button>
+          <button type="button" class="toggle-button">年次</button>
+        </div>
+      `;
+      const chipsParent = headChips.parentElement;
+      chipsParent.replaceChild(headActions, headChips);
+      headActions.appendChild(controlRow);
+      headActions.appendChild(headChips);
+    }
+
+    const topCards = Array.from(document.querySelectorAll(".alert-strip .card"));
+    if (topCards[0]) {
+      topCards[0].remove();
+    }
+    if (topCards[1]) {
+      topCards[1].remove();
+    }
+    if (topCards[2]) {
+      topCards[2].remove();
+    }
+    const signalCards = document.querySelectorAll(".signal-grid .signal-card");
+    const signalGrid = document.querySelector(".signal-grid");
+    const walletCard = document.getElementById("walletValue")?.closest(".signal-card");
+    const stoneUseCard = document.getElementById("stoneUseValue")?.closest(".signal-card");
+    if (signalGrid && walletCard && stoneUseCard) {
+      signalGrid.insertBefore(stoneUseCard, walletCard);
+    }
+
+    document.getElementById("walletValue").textContent = `${round(last(visibleData.walletTrend), 1).toFixed(1)}万`;
+    document.getElementById("walletHint").textContent = `直近12ヵ月平均 ${visibleData.walletYearlyAverage.toFixed(1)}万`;
+    document.getElementById("stoneUseValue").textContent = formatNumber(sum(visibleData.stoneUseTrend));
+    document.getElementById("stoneUseHint").textContent = `直近12ヵ月平均 ${formatNumber(dashboardData.stoneUseMonthlyAverage)}`;
+    document.getElementById("snsValue").textContent = `${formatNumber(last(visibleData.snsPostsTrend))}件`;
+    document.getElementById("snsAverage").textContent = `直近12ヵ月平均 ${formatNumber(dashboardData.snsPostsMonthlyAverage)}件`;
+    document.getElementById("snsPositiveHint").textContent = `ポジ ${formatPercent(last(visibleData.snsPositiveTrend), 1)}`;
+    document.getElementById("snsNegativeHint").textContent = `ネガ ${formatPercent(last(visibleData.snsNegativeTrend), 1)}`;
+    document.getElementById("loadValue").textContent = formatSeconds(last(visibleData.loadTimeTrend));
+    if (last(visibleData.loadTimeTrend) > visibleData.loadThreshold) {
+      document.getElementById("loadValue").classList.add("is-alert");
+    }
+    document.getElementById("loadHint").textContent = `閾値 ${formatSeconds(visibleData.loadThreshold)}`;
+
+    document.getElementById("revenueChart").innerHTML = buildComboChart({
+      bars: revenueActualSeries,
+      line: revenueTargetSeries,
+      barColor: "rgba(53,108,255,0.78)",
+      lineColor: "var(--blue-soft-line)",
+      labels,
+      domainLength: monthLength
+    });
+    const revenuePanel = document.querySelector(".hero .panel:first-child");
+    const revenueLegend = revenuePanel.querySelector(".legend");
+    revenueLegend.innerHTML = `
+      <span style="color:var(--blue)"><i class="line"></i>累計売上</span>
+      <span style="color:var(--blue-soft-line)"><i class="line"></i>累計目標</span>
+    `;
+    revenuePanel.insertBefore(revenueLegend, document.getElementById("revenueChart"));
+    revenuePanel.querySelectorAll(".delta").forEach((item) => {
+      const label = item.querySelector("span");
+      const value = item.querySelector("strong");
+      if (label && value) {
+        item.prepend(label);
+      }
+    });
+
+    document.getElementById("playerChart").innerHTML = buildPlayerChart({
+      dmau: visibleData.dmauTrend,
+      newUsers: visibleData.newUsersTrend,
+      churn: visibleData.churnUsersTrend,
+      labels,
+      domainLength: monthLength
+    });
+    document.getElementById("walletSpark").innerHTML = buildSpark(
+      visibleData.walletTrend,
+      "rgba(53,108,255,1)",
+      { benchmark: visibleData.walletYearlyAverage, benchmarkColor: "rgba(35,75,186,0.72)", domainLength: monthLength }
+    );
+    document.getElementById("stoneUseSpark").innerHTML = buildSpark(
+      cumulative(visibleData.stoneUseTrend),
+      "rgba(53,108,255,1)",
+      { benchmark: dashboardData.stoneUseMonthlyAverage, benchmarkColor: "rgba(35,75,186,0.72)", domainLength: monthLength }
+    );
+    document.getElementById("snsSpark").innerHTML = buildSnsSpark(
+      visibleData.snsPostsTrend,
+      visibleData.snsPositiveTrend,
+      visibleData.snsNegativeTrend,
+      280,
+      72,
+      monthLength,
+      dashboardData.snsPostsMonthlyAverage
+    );
+    document.getElementById("loadSpark").innerHTML = buildSpark(
+      visibleData.loadTimeTrend,
+      "rgba(53,108,255,1)",
+      { benchmark: visibleData.loadThreshold, benchmarkLabel: "閾値", benchmarkColor: "rgba(196,77,92,0.8)", domainLength: monthLength }
+    );
+  </script>
+  <script>
+    window.CONTROL_TOWER_TOOLTIP_MODE = true;
+  </script>
+  <script src="../shared/dashboard_nav.js"></script>
+  <script src="./control_tower_sample.js"></script>
+  <script>
+    (() => {
+      const sourceGrid = document.querySelector(".event-list-panel .sales-driver-grid");
+      const openButton = document.getElementById("driverExpandOpen");
+      const modal = document.getElementById("driverExpandModal");
+      const closeButton = document.getElementById("driverExpandClose");
+      const modalBody = document.getElementById("driverModalBody");
+      const stats = document.getElementById("driverModalStats");
+      const sortSelect = document.getElementById("driverSortSelect");
+      const filterButtons = Array.from(document.querySelectorAll("[data-driver-filter]"));
+      const state = { filter: "all", sort: "date" };
+
+      if (!sourceGrid || !openButton || !modal || !closeButton || !modalBody || !stats || !sortSelect) return;
+
+      const parseMetric = (text) => Number(String(text || "").replace(/[^\d.-]/g, "")) || 0;
+      const periodEnds = {
+        product: [
+          "2026-04-07", "2026-04-14", "2026-04-18", "2026-04-24", "2026-04-21",
+          "2026-04-26", "2026-04-30", "2026-05-02", "2026-05-03", "2026-05-05",
+          "2026-05-06", "2026-05-08", "2026-05-10", "2026-05-12", "2026-05-14"
+        ],
+        gacha: [
+          "2026-04-10", "2026-04-13", "2026-04-17", "2026-04-20", "2026-04-23",
+          "2026-04-27", "2026-04-29", "2026-05-01", "2026-05-03", "2026-05-05",
+          "2026-05-07", "2026-05-09", "2026-05-11", "2026-05-13", "2026-05-15"
+        ]
+      };
+      const formatPeriodDate = (dateText) => {
+        const match = String(dateText || "").match(/^\d{4}-(\d{2})-(\d{2})$/);
+        return match ? `${match[1]}/${match[2]}` : "--/--";
+      };
+
+      function decoratePeriod(row, group, index) {
+        const label = row.querySelector(".forecast-label");
+        if (!label || label.querySelector(".forecast-period")) return;
+
+        const name = label.textContent.trim();
+        const start = row.getAttribute("data-implementation-date");
+        const end = periodEnds[group]?.[index] || start;
+
+        label.textContent = "";
+        label.insertAdjacentHTML("beforeend", `
+          <span class="forecast-name">${name}</span>
+          <span class="forecast-period">${formatPeriodDate(start)} - ${formatPeriodDate(end)}</span>
+        `);
+      }
+
+      function tagRows(grid) {
+        grid.querySelectorAll(".driver-table-card").forEach((card, groupIndex) => {
+          const group = groupIndex === 0 ? "product" : "gacha";
+          card.querySelectorAll(".forecast-row").forEach((row, index) => {
+          const diff = row.querySelector(".forecast-diff");
+          const current = row.querySelector(".forecast-current");
+          const detail = row.querySelector(".forecast-detail");
+          const status = diff?.classList.contains("is-down") ? "down" : "up";
+
+          row.dataset.driverIndex = String(index);
+          row.dataset.driverGroup = group;
+          row.dataset.driverStatus = status;
+          row.dataset.driverDiff = String(parseMetric(diff?.textContent));
+          row.dataset.driverCurrent = String(parseMetric(current?.textContent));
+          const isEnded = row.classList.contains("is-ended") || detail?.textContent.trim().startsWith("最終");
+          row.dataset.driverEnded = isEnded ? "ended" : "active";
+          row.classList.toggle("is-ended", isEnded);
+          decoratePeriod(row, group, index);
+          });
+        });
+      }
+
+      function renderStats(grid) {
+        const rows = Array.from(grid.querySelectorAll(".forecast-row"));
+        const summarize = (group) => {
+          const groupRows = rows.filter((row) => row.dataset.driverGroup === group);
+          return {
+            total: groupRows.length,
+            up: groupRows.filter((row) => row.dataset.driverStatus === "up").length,
+            down: groupRows.filter((row) => row.dataset.driverStatus === "down").length,
+            ended: groupRows.filter((row) => row.dataset.driverEnded === "ended").length
+          };
+        };
+        const product = summarize("product");
+        const gacha = summarize("gacha");
+
+        stats.innerHTML = `
+          <span class="driver-stat"><strong>販売物 ${product.total}件</strong>: <span class="up">上振れ ${product.up}</span> / <span class="down">下振れ ${product.down}</span> / <span class="ended">終了済み ${product.ended}件</span></span>
+          <span class="driver-stat"><strong>ガチャ ${gacha.total}件</strong>: <span class="up">上振れ ${gacha.up}</span> / <span class="down">下振れ ${gacha.down}</span> / <span class="ended">終了済み ${gacha.ended}件</span></span>
+        `;
+      }
+
+      function compareRows(a, b) {
+        const aDiff = Number(a.dataset.driverDiff || 0);
+        const bDiff = Number(b.dataset.driverDiff || 0);
+        const aCurrent = Number(a.dataset.driverCurrent || 0);
+        const bCurrent = Number(b.dataset.driverCurrent || 0);
+
+        if (state.sort === "down") {
+          const aDown = a.dataset.driverStatus === "down" ? 0 : 1;
+          const bDown = b.dataset.driverStatus === "down" ? 0 : 1;
+          return aDown - bDown || aDiff - bDiff || Number(a.dataset.driverIndex) - Number(b.dataset.driverIndex);
+        }
+        if (state.sort === "up") {
+          const aUp = a.dataset.driverStatus === "up" ? 0 : 1;
+          const bUp = b.dataset.driverStatus === "up" ? 0 : 1;
+          return aUp - bUp || bDiff - aDiff || Number(a.dataset.driverIndex) - Number(b.dataset.driverIndex);
+        }
+        if (state.sort === "abs") {
+          return Math.abs(bDiff) - Math.abs(aDiff) || Number(a.dataset.driverIndex) - Number(b.dataset.driverIndex);
+        }
+        if (state.sort === "current") {
+          return bCurrent - aCurrent || Number(a.dataset.driverIndex) - Number(b.dataset.driverIndex);
+        }
+        return Number(a.dataset.driverIndex) - Number(b.dataset.driverIndex);
+      }
+
+      function applyModalView() {
+        const grid = modalBody.querySelector(".sales-driver-grid");
+        if (!grid) return;
+
+        filterButtons.forEach((button) => {
+          const isActive = button.dataset.driverFilter === state.filter;
+          button.classList.toggle("is-active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+
+        grid.querySelectorAll(".forecast-chart").forEach((chart) => {
+          const rows = Array.from(chart.querySelectorAll(".forecast-row"));
+          rows.sort(compareRows).forEach((row) => {
+            const shouldShow = state.filter === "all" || row.dataset.driverStatus === state.filter;
+            row.style.display = shouldShow ? "" : "none";
+            chart.append(row);
+          });
+        });
+      }
+
+      function buildModalContent() {
+        const clone = sourceGrid.cloneNode(true);
+        clone.querySelectorAll(".forecast-chart").forEach((chart) => {
+          chart.scrollTop = 0;
+        });
+        tagRows(clone);
+        modalBody.replaceChildren(clone);
+        renderStats(clone);
+        applyModalView();
+      }
+
+      function openModal() {
+        buildModalContent();
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+        closeButton.focus();
+      }
+
+      function closeModal() {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+        openButton.focus();
+      }
+
+      openButton.addEventListener("click", openModal);
+      closeButton.addEventListener("click", closeModal);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && modal.classList.contains("is-open")) closeModal();
+      });
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          state.filter = button.dataset.driverFilter || "all";
+          applyModalView();
+        });
+      });
+      sortSelect.addEventListener("change", () => {
+        state.sort = sortSelect.value;
+        applyModalView();
+      });
+    })();
+  </script>
+</body>
+</html>
+
+
+
+
+

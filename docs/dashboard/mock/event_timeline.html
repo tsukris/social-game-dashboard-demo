@@ -1,0 +1,1671 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>施策・イベント分析</title>
+  <style>
+    :root {
+  --font-sans: "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif;
+  --font-number: var(--font-sans);
+      --bg:#f4f6fb;
+      --surface:rgba(255,255,255,0.84); --line:rgba(22,32,51,0.10);
+      --ink:#162033; --muted:#63708a; --nav:#1d2d56; --blue:#356cff;
+      --orange:#ec6e47; --teal:#18a196; --violet:#7168ef;
+      --shadow:0 18px 40px rgba(27,39,74,0.12); --radius:20px;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; }
+    body {
+      min-height:100vh;
+      color:var(--ink);
+      font-family:var(--font-sans);
+      background:var(--bg);
+    }
+    button,
+    input,
+    select {
+      font:inherit;
+    }
+    .app-layout { display:grid; grid-template-columns:var(--dashboard-nav-width, 230px) minmax(0,1fr); min-height:100vh; }
+    .page {
+      min-width:0; min-height:100vh; height:auto; overflow:visible; padding:14px 24px 44px;
+      display:block;
+    }
+    .page > .panel + .panel {
+      margin-top:12px;
+    }
+    .page-head {
+      position:relative; z-index:5000; display:grid; grid-template-columns:minmax(160px,1fr) auto;
+      align-items:center; gap:14px; margin-bottom:8px;
+    }
+    .title-block { display:grid; gap:0; min-width:0; }
+    .kicker { display:none; margin:0; color:var(--muted); font-size:12px; font-weight:700; }
+    .title-line { display:flex; align-items:center; gap:8px; min-width:0; }
+    h1,
+    h2,
+    h3,
+    p {
+      margin:0;
+    }
+    h1 {
+      font:700 clamp(24px, 2vw, 30px) var(--font-sans);
+      line-height:1.05;
+      letter-spacing:-0.03em;
+    }
+    .head-side {
+      grid-column:auto; display:flex; justify-content:flex-end; justify-items:end; align-items:center;
+      min-width:0; gap:8px;
+    }
+    .control-row {
+      display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:10px;
+    }
+    .event-condition-bar,
+    .period-picker,
+    .segment {
+      display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    }
+    .event-condition-bar { justify-content:flex-end; align-items:center; gap:8px; }
+    .period-picker { position:relative; display:inline-flex; flex-wrap:nowrap; }
+    .info-tip {
+      position:relative; z-index:6000; display:inline-flex; align-items:center; justify-content:center;
+      flex:0 0 auto; width:18px; height:18px; border:1px solid rgba(22,32,51,0.14);
+      border-radius:999px; background:rgba(255,255,255,0.8); color:var(--muted);
+      font-size:11px; font-weight:800; line-height:1; cursor:help;
+    }
+    .chip {
+      display:inline-flex; align-items:center; gap:8px; padding:10px 14px;
+      border-radius:999px; background:rgba(255,255,255,0.76); border:1px solid rgba(22,32,51,0.08);
+      color:var(--ink); font-size:12px; font-weight:700;
+    }
+    .period-chip,
+    .condition-object {
+      display:inline-flex; align-items:center; gap:7px; min-height:36px;
+      border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,0.74);
+      color:var(--ink); font-size:13px; font-weight:800; white-space:nowrap;
+    }
+    .period-range-chip { gap:6px; padding:5px 7px 5px 14px; }
+    .period-chip strong { flex:0 0 auto; font-weight:800; }
+    .period-date-button {
+      display:inline-flex; align-items:center; gap:5px; min-height:28px; padding:4px 8px;
+      border:1px solid rgba(63,109,246,0.12); border-radius:999px;
+      background:rgba(255,255,255,0.62); color:var(--ink);
+      font:800 12px/1 var(--font-sans); white-space:nowrap; cursor:pointer;
+    }
+    .period-date-button:hover,
+    .period-date-button.is-active {
+      border-color:rgba(63,109,246,0.24); background:rgba(255,255,255,0.94);
+      box-shadow:0 10px 22px rgba(19,31,55,0.12);
+    }
+    .period-separator { color:var(--muted); }
+    .period-days-badge {
+      display:inline-flex; align-items:center; min-height:26px; padding:4px 8px;
+      border-left:1px solid var(--line); color:#223663; font-size:12px; font-weight:900; line-height:1;
+    }
+    .calendar-mark {
+      position:relative; display:inline-block; flex:0 0 14px; width:14px; height:14px;
+      border:1.5px solid currentColor; border-radius:4px; color:var(--blue);
+      pointer-events:none;
+    }
+    .calendar-mark::before {
+      content:""; position:absolute; top:3px; left:1px; right:1px; border-top:1.5px solid currentColor;
+    }
+    .calendar-mark::after {
+      content:""; position:absolute; top:7px; left:3px; width:2px; height:2px; background:currentColor;
+      box-shadow:4px 0 0 currentColor,0 4px 0 currentColor,4px 4px 0 currentColor; opacity:.8;
+    }
+    .calendar-popover {
+      position:absolute; top:calc(100% + 8px); right:0; z-index:5000; width:292px; padding:12px;
+      border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,0.98);
+      box-shadow:0 18px 42px rgba(19,31,55,0.16);
+    }
+    .calendar-popover-head,
+    .calendar-month-switch {
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .calendar-popover-head { color:var(--muted); font-size:11px; font-weight:800; }
+    .calendar-range-preview { margin:8px 0; color:var(--ink); font-size:12px; font-weight:900; }
+    .calendar-month-switch { margin-bottom:8px; }
+    .calendar-nav-button {
+      width:28px; height:28px; border:1px solid var(--line); border-radius:9px; background:rgba(63,109,246,0.08);
+      color:var(--blue); font-weight:900; cursor:pointer;
+    }
+    .calendar-month-value { font-size:12px; font-weight:900; }
+    .calendar-date-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+    .calendar-date {
+      height:28px; border:1px solid transparent; border-radius:9px; background:rgba(63,109,246,0.06);
+      color:var(--ink); font:800 11px/1 var(--font-sans); cursor:pointer;
+    }
+    .calendar-date:hover { border-color:rgba(63,109,246,0.24); background:rgba(63,109,246,0.12); }
+    .calendar-date.is-in-range { background:rgba(63,109,246,0.13); color:#223663; }
+    .calendar-date.is-start,
+    .calendar-date.is-end { background:var(--blue); color:#fff; }
+    .calendar-date:disabled { opacity:.32; cursor:not-allowed; background:rgba(33,42,74,0.04); }
+    .condition-object { position:relative; padding:5px 7px 5px 14px; }
+    .control-group { display:flex; gap:5px; align-items:center; }
+    .control-label {
+      display:inline-flex; align-items:center; gap:4px;
+      color:var(--ink); font-size:13px; font-weight:800; white-space:nowrap;
+    }
+    .segment {
+      min-width:0; gap:2px; padding:2px; flex-wrap:nowrap;
+      border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,0.7);
+    }
+    .segment-button {
+      min-height:28px; padding:7px 9px; border:0; border-radius:999px;
+      background:transparent; color:var(--muted);
+      font-size:11px; font-weight:800; line-height:1; cursor:pointer; white-space:nowrap;
+    }
+    .segment-button.is-active {
+      background:var(--nav); color:#fff; box-shadow:0 8px 18px rgba(29,45,86,0.18);
+    }
+    .classification-control { z-index:5002; }
+    .classification-segment-popover {
+      position:absolute; top:100%; right:0; z-index:5003; width:max-content; min-width:100%;
+      max-width:calc(100vw - 32px); overflow-x:auto; padding:8px;
+      border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,0.96);
+      box-shadow:0 18px 42px rgba(19,31,55,0.16);
+      opacity:0; pointer-events:none; transform:translateY(-2px);
+      transition:opacity 140ms ease, transform 140ms ease;
+    }
+    .classification-control.is-open .classification-segment-popover {
+      opacity:1; pointer-events:auto; transform:translateY(0);
+    }
+    .classification-segment-title {
+      padding:2px 6px 7px; color:var(--muted); font-size:10px; font-weight:900; line-height:1;
+    }
+    .classification-segment-list { display:flex; flex-wrap:nowrap; gap:4px; }
+    .classification-segment-list .segment-button {
+      flex:0 0 auto; background:rgba(53,108,255,0.07); white-space:nowrap;
+    }
+    .classification-segment-list .segment-button.is-active { background:var(--nav); }
+    .panel { 
+      min-width:0; min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr); gap:8px;
+      padding:14px; border-radius:var(--radius); background:var(--surface); border:1px solid rgba(255,255,255,0.5);
+      box-shadow:var(--shadow); backdrop-filter:blur(18px);
+    }
+    .panel-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+    .panel-title { margin:0; font:700 17px var(--font-number); letter-spacing:-0.02em; }
+    .panel-title-row { display:inline-flex; align-items:center; gap:7px; position:relative; }
+    .panel-subtitle { margin:2px 0 0; color:var(--muted); font-size:10px; line-height:1.45; }
+    .panel-count { color:var(--muted); font-size:11px; font-weight:700; white-space:nowrap; }
+    .insight-tip { position:relative; z-index:60; display:inline-flex; align-items:center; flex:0 0 auto; }
+    .insight-button {
+      width:22px; height:22px; border:1px solid rgba(22,32,51,0.14); border-radius:999px;
+      background:rgba(255,255,255,0.74); color:var(--muted);
+      box-shadow:0 8px 18px rgba(19,31,55,0.08);
+      font:800 11px/1 var(--font-sans);
+      cursor:help;
+    }
+    .insight-button:hover,
+    .insight-button:focus-visible {
+      border-color:rgba(63,109,246,0.46); color:var(--blue); outline:none;
+    }
+    .insight-popover {
+      position:absolute; top:calc(100% + 9px); left:0; z-index:1000;
+      width:min(360px,70vw); padding:12px 13px; border-radius:14px;
+      background:rgba(22,32,51,0.96); color:rgba(255,255,255,0.94);
+      box-shadow:0 18px 44px rgba(19,31,55,0.28);
+      opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-4px);
+      transition:opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+      text-align:left; white-space:normal; letter-spacing:0;
+    }
+    .insight-tip:hover .insight-popover,
+    .insight-tip:focus-within .insight-popover {
+      opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0);
+    }
+    .insight-kicker {
+      display:block; margin-bottom:6px; color:rgba(255,255,255,0.76);
+      font-size:11px; font-weight:800; letter-spacing:0.06em;
+    }
+    .insight-copy { display:block; font-size:12px; line-height:1.7; font-weight:700; }
+    .graph-controls { display:flex; align-items:center; justify-content:flex-start; gap:8px; flex-wrap:wrap; }
+    .graph-select {
+      height:36px; min-width:230px; border:1px solid rgba(33,42,74,0.12); border-radius:12px;
+      background:rgba(255,255,255,0.86); color:var(--ink); font:800 17px/1.2 var(--font-number);
+      letter-spacing:-0.02em; padding:0 34px 0 12px; cursor:pointer;
+    }
+    .graph-count { color:var(--muted); font-size:11px; font-weight:700; white-space:nowrap; }
+    .graph-shell {
+      min-height:0; height:100%; overflow:auto; padding:10px 10px 8px; border-radius:16px; border:1px solid var(--line);
+      background:rgba(255,255,255,0.58); position:relative;
+    }
+    .bar-chart {
+      display:block; min-width:max-content;
+    }
+    .chart-grid-line {
+      stroke:rgba(33,42,74,0.09); stroke-width:1;
+    }
+    .chart-axis {
+      stroke:rgba(33,42,74,0.18); stroke-width:1;
+    }
+    .chart-tick-label {
+      fill:var(--muted); font-size:10px; font-weight:800;
+    }
+    .chart-bar {
+      fill:#3f6df6;
+      filter:drop-shadow(0 8px 12px rgba(31,99,166,0.16));
+    }
+    .chart-bar-group { cursor:default; }
+    .chart-bar-group:hover .chart-bar { fill:#2f5ee8; }
+    .svg-bar-label {
+      fill:var(--ink); font-size:9px; font-weight:800;
+    }
+    .graph-hover-tooltip {
+      position:fixed; z-index:80; display:grid; gap:4px; min-width:190px; max-width:280px;
+      padding:10px 12px; border-radius:10px; background:rgba(23,33,59,0.96); color:#fff;
+      box-shadow:0 14px 32px rgba(20,30,55,0.24); border:1px solid rgba(255,255,255,0.16);
+      pointer-events:none; opacity:0; visibility:hidden; transform:translate3d(0,0,0);
+      transition:opacity 80ms ease; font-size:11px; line-height:1.45;
+    }
+    .graph-hover-tooltip.is-visible { opacity:1; visibility:visible; }
+    .graph-tooltip-name { font-size:12px; font-weight:900; }
+    .graph-tooltip-meta { color:rgba(255,255,255,0.72); font-weight:700; }
+    .graph-tooltip-value { font:900 14px/1.3 var(--font-number); }
+    .graph-empty {
+      height:100%; min-height:128px; display:grid; place-items:center;
+      color:var(--muted); font-size:12px; font-weight:700;
+    }
+    .graph-panel {
+      grid-template-rows:auto minmax(0,1fr);
+      height:560px;
+      min-height:560px;
+      max-height:560px;
+    }
+    .table-panel { grid-template-rows:auto minmax(0,1fr); height:360px; min-height:360px; max-height:360px; }
+    .table-toolbar { display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; }
+    .table-button {
+      height:32px; border:1px solid var(--line); border-radius:10px;
+      background:rgba(63,109,246,0.10); color:var(--blue); font-size:11px; font-weight:700; padding:0 12px;
+      cursor:pointer;
+    }
+    .table-count { color:var(--muted); font-size:11px; font-weight:700; white-space:nowrap; }
+    .table-wrap {
+      min-height:0; height:100%; overflow:auto; border-radius:16px; border:1px solid var(--line);
+      background:rgba(255,255,255,0.62);
+    }
+    table { width:100%; border-collapse:collapse; font-size:10px; line-height:1.45; }
+    thead th {
+      position:sticky; top:0; z-index:1; background:rgba(248,250,255,0.96);
+      padding:0; border-bottom:1px solid var(--line); white-space:nowrap;
+    }
+    .filter-header { position:relative; }
+    .filter-header.is-open { z-index:30; }
+    .filter-header-button {
+      width:100%; display:flex; align-items:center; gap:6px; padding:8px;
+      border:none; background:transparent; color:var(--muted); font-size:10px; font-weight:700;
+      text-align:left; cursor:pointer;
+    }
+    .filter-header-button::after { content:"▾"; color:#9aa4bb; font-size:9px; margin-left:auto; }
+    .filter-header-button.is-asc::after { content:"↑"; color:var(--blue); }
+    .filter-header-button.is-desc::after { content:"↓"; color:var(--blue); }
+    .filter-header-button.is-filtered { color:var(--blue); }
+    .excel-filter-menu {
+      position:absolute; top:calc(100% + 4px); left:0; z-index:20; display:none;
+      width:220px; padding:9px; border-radius:12px; border:1px solid rgba(33,42,74,0.14);
+      background:rgba(255,255,255,0.98); box-shadow:0 18px 40px rgba(27,39,74,0.18);
+    }
+    .filter-header.is-open .excel-filter-menu { display:grid; gap:8px; }
+    .filter-sort-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .filter-sort-button,
+    .filter-clear-button {
+      height:28px; border-radius:8px; border:1px solid var(--line); background:rgba(63,109,246,0.08);
+      color:var(--ink); font:700 10px/1 var(--font-sans); cursor:pointer;
+    }
+    .filter-clear-button { width:100%; color:var(--blue); background:rgba(63,109,246,0.10); }
+    .filter-search {
+      width:100%; height:30px; border-radius:8px; border:1px solid var(--line);
+      background:rgba(255,255,255,0.9); color:var(--ink); font:inherit; font-size:11px; padding:0 9px;
+    }
+    .filter-range-row { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .filter-range-input {
+      width:100%; height:30px; border-radius:8px; border:1px solid var(--line);
+      background:rgba(255,255,255,0.9); color:var(--ink); font:inherit; font-size:11px; padding:0 8px;
+    }
+    .filter-range-note { color:var(--muted); font-size:10px; line-height:1.4; }
+    .filter-values { display:grid; gap:5px; max-height:150px; overflow:auto; padding:2px 2px 2px 0; }
+    .filter-check {
+      display:flex; align-items:center; gap:7px; min-height:22px; color:var(--ink);
+      font-size:11px; white-space:nowrap;
+    }
+    .filter-date-tree { display:grid; gap:4px; max-height:190px; overflow:auto; padding:2px 2px 2px 0; }
+    .filter-check.is-year { font-weight:800; }
+    .filter-check.is-month { padding-left:18px; font-weight:700; }
+    .filter-check.is-day { padding-left:36px; }
+    .filter-check input { width:13px; height:13px; margin:0; accent-color:var(--blue); }
+    .filter-empty { color:var(--muted); font-size:11px; padding:6px 2px; }
+    tbody td { padding:8px; border-bottom:1px solid rgba(33,42,74,0.06); white-space:nowrap; }
+    tbody tr:nth-child(even) { background:rgba(255,255,255,0.44); }
+    .category-chip {
+      display:inline-flex; align-items:center; padding:3px 7px; border-radius:999px;
+      font-size:10px; font-weight:700; background:rgba(63,109,246,0.10); color:var(--ink);
+    }
+    .category-chip.quest { background:rgba(24,161,150,0.12); color:#0f776e; }
+    .category-chip.gacha { background:rgba(236,110,71,0.14); color:#bf5638; }
+    .category-chip.product { background:rgba(113,104,239,0.12); color:#564fe0; }
+    .category-chip.ad { background:rgba(31,120,196,0.12); color:#1f78c4; }
+    .timeline-panel {
+      grid-template-rows:auto auto; align-content:start;
+      min-height:var(--timeline-panel-height,320px);
+    }
+    .timeline-wrap {
+      min-height:0; height:var(--timeline-wrap-height,auto); overflow-x:auto; overflow-y:visible; border-radius:16px; border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.46));
+      isolation:isolate;
+    }
+    .timeline { min-width:920px; }
+    .axis {
+      display:grid; grid-template-columns:120px repeat(30,minmax(24px,1fr));
+      position:sticky; top:0; z-index:20; background:#f8faff; border-bottom:1px solid var(--line);
+      box-shadow:0 1px 0 rgba(33,42,74,.06);
+    }
+    .axis div { padding:8px 4px; font-size:10px; font-weight:700; color:var(--muted); text-align:center; }
+    .axis .label { text-align:left; padding-left:12px; }
+    .lane {
+      display:grid; grid-template-columns:120px repeat(30,minmax(24px,1fr));
+      grid-template-rows:var(--lane-height,96px);
+      min-height:var(--lane-height,96px); border-bottom:1px solid rgba(23,33,59,.07); position:relative;
+    }
+    .lane:last-child { border-bottom:0; }
+    .lane-name {
+      padding:16px 12px; font-size:12px; font-weight:700; display:flex; align-items:flex-start;
+      background:rgba(255,255,255,.28); position:sticky; left:0; z-index:3; grid-row:1; grid-column:1;
+    }
+    .cell { border-left:1px dashed rgba(23,33,59,.08); grid-row:1; }
+    .weekend { background:rgba(63,109,246,.035); }
+    .event-layer { grid-column:2 / -1; grid-row:1; position:relative; z-index:2; min-height:0; overflow:hidden; padding-top:10px; }
+    .event {
+      position:absolute; height:30px; border-radius:10px; color:#fff; padding:6px 10px;
+      font-size:10px; font-weight:700; display:flex; align-items:center; gap:6px;
+      box-shadow:0 8px 18px rgba(28,39,72,.18); border:1px solid rgba(255,255,255,.25);
+      overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+    }
+    .event small { opacity:.88; font-size:9px; }
+    .event.quest { background:linear-gradient(135deg,#18a196,#0f776e); }
+    .event.gacha { background:linear-gradient(135deg,#ec6e47,#d65831); }
+    .event.product { background:linear-gradient(135deg,#7168ef,#4d40c6); }
+    .event.ad { background:linear-gradient(135deg,#4b8df7,#1f78c4); }
+    @media (max-width:1280px) {
+      .page { height:auto; overflow:visible; }
+      body { min-height:100vh; }
+      .panel { min-height:260px; }
+      .graph-panel { height:560px; min-height:560px; max-height:560px; }
+      .table-panel { height:360px; min-height:360px; max-height:360px; }
+      .timeline-panel { min-height:320px; }
+    }
+    @media (max-width:860px) {
+      .app-layout { grid-template-columns:1fr; }
+      .page-head { grid-template-columns:1fr; justify-content:stretch; }
+      .head-side { justify-content:flex-start; justify-items:start; align-items:flex-start; }
+      .event-condition-bar { justify-content:flex-start; }
+      .control-row { justify-content:flex-start; }
+    }
+  </style>
+  <link rel="stylesheet" href="../shared/dashboard_nav.css">
+</head>
+<body data-analysis-page="events">
+  <div class="app-layout">
+    <aside data-dashboard-nav data-active="events" data-base="../"></aside>
+    <main class="analysis-page page">
+      <section class="page-head">
+        <div class="title-block">
+          <p class="kicker">Event Analysis</p>
+          <div class="title-line">
+            <h1>施策・イベント分析</h1>
+            <span class="info-tip" tabindex="0" aria-label="施策・イベントと主要指標を同じ時間軸で見比べ、売上や参加率の変化要因を確認する分析画面です。" title="施策・イベントと主要指標を同じ時間軸で見比べ、売上や参加率の変化要因を確認する分析画面です。">?</span>
+          </div>
+        </div>
+        <div class="head-side">
+          <div class="event-condition-bar period-control condition-bar" id="eventConditionBar" aria-label="分析条件"></div>
+        </div>
+      </section>
+
+      <section class="panel graph-panel" aria-label="イベント指標グラフ">
+        <div class="panel-header">
+          <div class="graph-controls">
+            <select class="graph-select" id="graphMetricSelect" aria-label="表示指標">
+              <option value="revenue">売上</option>
+              <option value="stone">石消費</option>
+              <option value="clickRate">クリック率</option>
+              <option value="dmauRate">rDAU参加購入率</option>
+              <option value="payerRate">課金者参加購入率</option>
+              <option value="dmauClearRate">rDAU突破率</option>
+              <option value="payerClearRate">課金者突破率</option>
+            </select>
+          </div>
+        </div>
+        <div class="graph-shell" id="eventGraph" aria-label="イベント指標グラフ"></div>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title panel-title-row">
+              イベント一覧
+              <span class="insight-tip">
+                <button class="insight-button" type="button" aria-label="イベント一覧の説明を表示">?</button>
+                <span class="insight-popover" role="tooltip">
+                  <span class="insight-kicker">イベント一覧の見方</span>
+                  <span class="insight-copy">ゲーム内のあらゆる事象を一覧化し、時系列グラフと見合わせて何が起こったかを確認するための表です。</span>
+                </span>
+              </span>
+            </h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><div class="filter-header" data-filter-header="category"><button class="filter-header-button" type="button" data-filter-toggle="category">イベント分類</button><div class="excel-filter-menu" data-filter-menu="category"></div></div></th>
+                <th><div class="filter-header" data-filter-header="name"><button class="filter-header-button" type="button" data-filter-toggle="name">イベント名</button><div class="excel-filter-menu" data-filter-menu="name"></div></div></th>
+                <th><div class="filter-header" data-filter-header="start"><button class="filter-header-button" type="button" data-filter-toggle="start">イベント開始日</button><div class="excel-filter-menu" data-filter-menu="start"></div></div></th>
+                <th><div class="filter-header" data-filter-header="end"><button class="filter-header-button" type="button" data-filter-toggle="end">イベント終了日</button><div class="excel-filter-menu" data-filter-menu="end"></div></div></th>
+                <th><div class="filter-header" data-filter-header="revenue"><button class="filter-header-button" type="button" data-filter-toggle="revenue">合計売上</button><div class="excel-filter-menu" data-filter-menu="revenue"></div></div></th>
+                <th><div class="filter-header" data-filter-header="stone"><button class="filter-header-button" type="button" data-filter-toggle="stone">合計石消費</button><div class="excel-filter-menu" data-filter-menu="stone"></div></div></th>
+                <th><div class="filter-header" data-filter-header="clickRate"><button class="filter-header-button" type="button" data-filter-toggle="clickRate">クリック率</button><div class="excel-filter-menu" data-filter-menu="clickRate"></div></div></th>
+                <th><div class="filter-header" data-filter-header="dmauRate"><button class="filter-header-button" type="button" data-filter-toggle="dmauRate">rDAU参加購入率</button><div class="excel-filter-menu" data-filter-menu="dmauRate"></div></div></th>
+                <th><div class="filter-header" data-filter-header="payerRate"><button class="filter-header-button" type="button" data-filter-toggle="payerRate">課金者参加購入率</button><div class="excel-filter-menu" data-filter-menu="payerRate"></div></div></th>
+                <th><div class="filter-header" data-filter-header="dmauClearRate"><button class="filter-header-button" type="button" data-filter-toggle="dmauClearRate">rDAU突破率</button><div class="excel-filter-menu" data-filter-menu="dmauClearRate"></div></div></th>
+                <th><div class="filter-header" data-filter-header="payerClearRate"><button class="filter-header-button" type="button" data-filter-toggle="payerClearRate">課金者突破率</button><div class="excel-filter-menu" data-filter-menu="payerClearRate"></div></div></th>
+              </tr>
+            </thead>
+            <tbody id="eventTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel timeline-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">イベント時系列レーン</h2>
+          </div>
+        </div>
+        <div class="timeline-wrap">
+          <div class="timeline" id="timeline"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../shared/dashboard_nav.js"></script>
+  <script>
+    const startDate = "2024-01-01";
+    const endDate = "2026-04-18";
+    const defaultPeriodDays = 30;
+    const categories = [
+      { value: "クエスト", label: "クエスト" },
+      { value: "ガチャ", label: "ガチャ" },
+      { value: "商品", label: "商品" },
+      { value: "広告", label: "広告" }
+    ];
+    const classificationOptions = [
+      ["all", "全体"],
+      ["spend", "課金額"],
+      ["core", "コア"],
+      ["playHistory", "プレイ歴"]
+    ];
+    const classificationSegments = {
+      spend: [["free", "無課金"], ["light", "軽課金"], ["mid", "中課金"], ["heavy", "重課金"]],
+      core: [["login", "ログイン"], ["lite", "ライト"], ["middle", "ミドル"], ["core", "コア"]],
+      playHistory: [["play30", "30日以内"], ["play90", "31〜90日"], ["play180", "91〜180日"], ["play181", "181日以上"]]
+    };
+    let eventFilterState;
+    let eventPeriodEnd = parseIsoDate(endDate);
+    let eventPeriodStart = addDays(eventPeriodEnd, -(defaultPeriodDays - 1));
+    let calendarCursor = new Date(eventPeriodEnd.getFullYear(), eventPeriodEnd.getMonth(), 1);
+    let calendarOpen = false;
+    let calendarTarget = "start";
+    let eventClassification = "all";
+    let eventSegment = "all";
+    let eventSegmentOpen = false;
+    const eventRows = [
+      { category: "ガチャ", name: "新春フェスガチャ 2024", start: "2024-01-01", end: "2024-01-10", revenue: null, stone: 12.8e6, clickRate: 0.471, dmauRate: 0.318, payerRate: 0.612, dmauClearRate: null, payerClearRate: null },
+      { category: "クエスト", name: "バレンタインランキング 2024", start: "2024-02-14", end: "2024-02-24", revenue: null, stone: null, clickRate: null, dmauRate: 0.232, payerRate: 0.318, dmauClearRate: 0.174, payerClearRate: 0.263 },
+      { category: "商品", name: "春の育成パック 2024", start: "2024-04-01", end: "2024-04-10", revenue: 18.6e6, stone: null, clickRate: 0.218, dmauRate: 0.136, payerRate: 0.398, dmauClearRate: null, payerClearRate: null },
+      { category: "広告", name: "春フェス告知バナー 2024", start: "2024-03-18", end: "2024-03-31", revenue: null, stone: null, clickRate: 0.087, dmauRate: null, payerRate: null, dmauClearRate: null, payerClearRate: null },
+      { category: "ガチャ", name: "夏フェスガチャ 2024", start: "2024-07-19", end: "2024-07-30", revenue: null, stone: 15.4e6, clickRate: 0.486, dmauRate: 0.326, payerRate: 0.628, dmauClearRate: null, payerClearRate: null },
+      { category: "広告", name: "水着復刻ティザー広告 2024", start: "2024-07-05", end: "2024-07-18", revenue: null, stone: null, clickRate: 0.104, dmauRate: null, payerRate: null, dmauClearRate: null, payerClearRate: null },
+      { category: "クエスト", name: "秋の探索イベント 2024", start: "2024-10-08", end: "2024-10-18", revenue: null, stone: null, clickRate: null, dmauRate: 0.216, payerRate: 0.292, dmauClearRate: 0.158, payerClearRate: 0.241 },
+      { category: "商品", name: "新春福袋 2025", start: "2025-01-01", end: "2025-01-08", revenue: 23.1e6, stone: null, clickRate: 0.232, dmauRate: 0.148, payerRate: 0.421, dmauClearRate: null, payerClearRate: null },
+      { category: "広告", name: "周年カムバック広告 2025", start: "2025-09-01", end: "2025-09-15", revenue: null, stone: null, clickRate: 0.127, dmauRate: null, payerRate: null, dmauClearRate: null, payerClearRate: null },
+      { category: "ガチャ", name: "周年前夜祭ガチャ 2025", start: "2025-09-12", end: "2025-09-25", revenue: null, stone: 18.6e6, clickRate: 0.493, dmauRate: 0.337, payerRate: 0.646, dmauClearRate: null, payerClearRate: null },
+      { category: "クエスト", name: "年末レイド 2025", start: "2025-12-26", end: "2026-01-08", revenue: null, stone: null, clickRate: null, dmauRate: 0.247, payerRate: 0.329, dmauClearRate: 0.189, payerClearRate: 0.282 },
+      { category: "ガチャ", name: "春フェスガチャ 2026", start: "2026-03-14", end: "2026-03-24", revenue: null, stone: 19.1e6, clickRate: 0.476, dmauRate: 0.328, payerRate: 0.618, dmauClearRate: null, payerClearRate: null },
+      { category: "広告", name: "新生活CPバナー 2026", start: "2026-03-25", end: "2026-04-04", revenue: null, stone: null, clickRate: 0.093, dmauRate: null, payerRate: null, dmauClearRate: null, payerClearRate: null },
+      { category: "商品", name: "新生活ブーストパック 2026", start: "2026-04-05", end: "2026-04-14", revenue: 26.1e6, stone: null, clickRate: 0.224, dmauRate: 0.141, payerRate: 0.409, dmauClearRate: null, payerClearRate: null },
+      { category: "クエスト", name: "緊急メンテ補填クエスト 2026", start: "2026-04-09", end: "2026-04-18", revenue: null, stone: null, clickRate: null, dmauRate: 0.196, payerRate: 0.271, dmauClearRate: 0.141, payerClearRate: 0.214 }
+    ].concat(createMockEventRows(), createInitialPeriodEventRows());
+    const columnDefs = [
+      { key: "category", label: "イベント分類", type: "text", value: row => row.category },
+      { key: "name", label: "イベント名", type: "text", value: row => row.name },
+      { key: "start", label: "イベント開始日", type: "dateTree", value: row => formatDate(row.start), filterValue: row => row.start, sortValue: row => Date.parse(row.start) },
+      { key: "end", label: "イベント終了日", type: "dateTree", value: row => formatDate(row.end), filterValue: row => row.end, sortValue: row => Date.parse(row.end) },
+      { key: "revenue", label: "合計売上", type: "number", value: row => formatOptionalMoney(row.revenue), sortValue: row => row.revenue, rangeValue: row => row.revenue == null ? null : row.revenue / 10000, rangeUnit: "万円" },
+      { key: "stone", label: "合計石消費", type: "number", value: row => formatOptionalCount(row.stone), sortValue: row => row.stone, rangeValue: row => row.stone == null ? null : row.stone / 10000, rangeUnit: "万" },
+      { key: "clickRate", label: "クリック率", type: "number", value: row => formatOptionalPercent(row.clickRate, 1), sortValue: row => row.clickRate, rangeValue: row => row.clickRate == null ? null : row.clickRate * 100, rangeUnit: "%" },
+      { key: "dmauRate", label: "rDAU参加購入率", type: "number", value: row => formatOptionalPercent(row.dmauRate, 1), sortValue: row => row.dmauRate, rangeValue: row => row.dmauRate == null ? null : row.dmauRate * 100, rangeUnit: "%" },
+      { key: "payerRate", label: "課金者参加購入率", type: "number", value: row => formatOptionalPercent(row.payerRate, 1), sortValue: row => row.payerRate, rangeValue: row => row.payerRate == null ? null : row.payerRate * 100, rangeUnit: "%" },
+      { key: "dmauClearRate", label: "rDAU突破率", type: "number", value: row => formatOptionalPercent(row.dmauClearRate, 1), sortValue: row => row.dmauClearRate, rangeValue: row => row.dmauClearRate == null ? null : row.dmauClearRate * 100, rangeUnit: "%" },
+      { key: "payerClearRate", label: "課金者突破率", type: "number", value: row => formatOptionalPercent(row.payerClearRate, 1), sortValue: row => row.payerClearRate, rangeValue: row => row.payerClearRate == null ? null : row.payerClearRate * 100, rangeUnit: "%" }
+    ];
+    const chartMetrics = [
+      { key: "revenue", label: "売上", value: row => row.revenue, format: formatMoneyShort },
+      { key: "stone", label: "石消費", value: row => row.stone, format: formatCountShort },
+      { key: "clickRate", label: "クリック率", value: row => row.clickRate, format: value => formatPercent(value, 1) },
+      { key: "dmauRate", label: "rDAU参加購入率", value: row => row.dmauRate, format: value => formatPercent(value, 1) },
+      { key: "payerRate", label: "課金者参加購入率", value: row => row.payerRate, format: value => formatPercent(value, 1) },
+      { key: "dmauClearRate", label: "rDAU突破率", value: row => row.dmauClearRate, format: value => formatPercent(value, 1) },
+      { key: "payerClearRate", label: "課金者突破率", value: row => row.payerClearRate, format: value => formatPercent(value, 1) }
+    ];
+    let selectedGraphMetric = "revenue";
+    eventFilterState = { sortKey: "start", sortDir: "asc", columns: createColumnFilters() };
+
+    setupEventConditions();
+    renderEventConditions();
+    setupGraphControls();
+    setupExcelFilters();
+    renderFilterMenus();
+    syncFilterButtons();
+    renderEventViews();
+
+    function setupEventConditions() {
+      document.addEventListener("click", event => {
+        if (event.target.closest("#eventConditionBar")) return;
+        if (!calendarOpen && !eventSegmentOpen) return;
+        calendarOpen = false;
+        eventSegmentOpen = false;
+        renderEventConditions();
+      });
+    }
+
+    function renderEventConditions() {
+      const conditionBar = document.getElementById("eventConditionBar");
+      conditionBar.innerHTML = `
+        ${renderEventPeriodPicker()}
+        ${renderEventClassificationControl()}
+      `;
+      wireEventConditionControls(conditionBar);
+    }
+
+    function wireEventConditionControls(conditionBar) {
+      conditionBar.querySelectorAll("[data-event-period-target]").forEach(button => {
+        button.addEventListener("click", event => {
+          event.stopPropagation();
+          eventSegmentOpen = false;
+          const nextTarget = button.dataset.eventPeriodTarget;
+          const shouldClose = calendarOpen && calendarTarget === nextTarget;
+          calendarTarget = nextTarget;
+          const anchor = calendarTarget === "start" ? eventPeriodStart : eventPeriodEnd;
+          calendarCursor = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+          calendarOpen = !shouldClose;
+          renderEventConditions();
+        });
+      });
+
+      conditionBar.querySelectorAll("[data-event-calendar-shift]").forEach(button => {
+        button.addEventListener("click", event => {
+          event.stopPropagation();
+          eventSegmentOpen = false;
+          calendarCursor = addMonths(calendarCursor, Number(button.dataset.eventCalendarShift));
+          renderEventConditions();
+        });
+      });
+
+      conditionBar.querySelectorAll("[data-event-calendar-date]").forEach(button => {
+        button.addEventListener("click", event => {
+          event.stopPropagation();
+          eventSegmentOpen = false;
+          applyEventPeriodDate(button.dataset.eventCalendarDate);
+          calendarOpen = false;
+          renderEventConditions();
+          renderEventViews();
+        });
+      });
+
+      conditionBar.querySelectorAll("[data-event-classification]").forEach(button => {
+        button.addEventListener("click", event => {
+          event.stopPropagation();
+          const nextClassification = button.dataset.eventClassification;
+          eventClassification = nextClassification;
+          eventSegment = defaultEventSegment(nextClassification);
+          eventSegmentOpen = eventClassification !== "all";
+          renderEventConditions();
+          renderEventViews();
+        });
+      });
+
+      conditionBar.querySelectorAll("[data-event-segment]").forEach(button => {
+        button.addEventListener("click", event => {
+          event.stopPropagation();
+          eventSegment = button.dataset.eventSegment;
+          eventSegmentOpen = true;
+          renderEventConditions();
+          renderEventViews();
+        });
+      });
+
+      conditionBar.querySelectorAll(".classification-control").forEach(control => {
+        control.addEventListener("click", event => {
+          if (event.target.closest("button")) return;
+          if (eventClassification === "all") return;
+          event.stopPropagation();
+          calendarOpen = false;
+          eventSegmentOpen = true;
+          renderEventConditions();
+        });
+      });
+    }
+
+    function renderEventPeriodPicker() {
+      const periodDays = dayDiff(formatIsoDate(eventPeriodStart), formatIsoDate(eventPeriodEnd)) + 1;
+      return `
+        <div class="period-picker">
+          <div class="period-chip period-range-chip">
+            <strong>基準期間:</strong>
+            <button class="period-date-button${calendarOpen && calendarTarget === "start" ? " is-active" : ""}" type="button" data-event-period-target="start" aria-label="開始日を選択" aria-expanded="${calendarOpen && calendarTarget === "start"}">
+              <span>${formatFullDate(eventPeriodStart)}</span>
+              <span class="calendar-mark" aria-hidden="true"></span>
+            </button>
+            <span class="period-separator">-</span>
+            <button class="period-date-button${calendarOpen && calendarTarget === "end" ? " is-active" : ""}" type="button" data-event-period-target="end" aria-label="終了日を選択" aria-expanded="${calendarOpen && calendarTarget === "end"}">
+              <span>${formatFullDate(eventPeriodEnd)}</span>
+              <span class="calendar-mark" aria-hidden="true"></span>
+            </button>
+            <span class="period-days-badge">${periodDays}日</span>
+          </div>
+          ${calendarOpen ? renderEventCalendarPopover() : ""}
+        </div>
+      `;
+    }
+
+    function renderEventClassificationControl() {
+      const segmentOptions = classificationSegments[eventClassification] || [];
+      return `
+        <div class="condition-object control-group classification-control${eventSegmentOpen && segmentOptions.length ? " is-open" : ""}">
+          <div class="control-label">分類軸</div>
+          <div class="segment" role="group" aria-label="分類軸">
+            ${classificationOptions.map(([value, label]) => `
+              <button class="segment-button${eventClassification === value ? " is-active" : ""}" type="button" data-event-classification="${value}" aria-pressed="${eventClassification === value}" aria-expanded="${value === eventClassification && segmentOptions.length ? eventSegmentOpen : false}">${label}</button>
+            `).join("")}
+          </div>
+          ${segmentOptions.length ? `
+            <div class="classification-segment-popover" role="group" aria-label="セグメント">
+              <div class="classification-segment-title">セグメント</div>
+              <div class="classification-segment-list">
+                ${segmentOptions.map(([value, label]) => `
+                  <button class="segment-button${eventSegment === value ? " is-active" : ""}" type="button" data-event-segment="${value}" aria-pressed="${eventSegment === value}">${label}</button>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }
+
+    function defaultEventSegment(classification) {
+      const segments = classificationSegments[classification] || [];
+      return segments[segments.length - 1]?.[0] || "all";
+    }
+
+    function renderEventCalendarPopover() {
+      const targetLabel = calendarTarget === "start" ? "開始日" : "終了日";
+      return `
+        <div class="calendar-popover" role="dialog" aria-label="基準期間の${targetLabel}選択">
+          <div class="calendar-popover-head">
+            <span>${targetLabel}を選択</span>
+            <span>${formatFullDate(eventPeriodStart)} - ${formatFullDate(eventPeriodEnd)}</span>
+          </div>
+          <div class="calendar-range-preview">${formatFullDate(eventPeriodStart)} - ${formatFullDate(eventPeriodEnd)}</div>
+          <div class="calendar-month-switch" aria-label="年月を選択">
+            <button class="calendar-nav-button" type="button" data-event-calendar-shift="-1" aria-label="前の月">&lt;</button>
+            <span class="calendar-month-value">${calendarCursor.getFullYear()}/${pad2(calendarCursor.getMonth() + 1)}</span>
+            <button class="calendar-nav-button" type="button" data-event-calendar-shift="1" aria-label="次の月">&gt;</button>
+          </div>
+          <div class="calendar-date-grid">${renderEventCalendarDates()}</div>
+        </div>
+      `;
+    }
+
+    function renderEventCalendarDates() {
+      const year = calendarCursor.getFullYear();
+      const month = calendarCursor.getMonth();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      return Array.from({ length: lastDate }, (_, index) => {
+        const date = new Date(year, month, index + 1);
+        const iso = formatIsoDate(date);
+        const disabled = date < parseIsoDate(startDate) || date > parseIsoDate(endDate);
+        const classes = ["calendar-date"];
+        if (date >= eventPeriodStart && date <= eventPeriodEnd) classes.push("is-in-range");
+        if (sameDate(date, eventPeriodStart)) classes.push("is-start");
+        if (sameDate(date, eventPeriodEnd)) classes.push("is-end");
+        return `<button class="${classes.join(" ")}" type="button" data-event-calendar-date="${iso}" ${disabled ? "disabled" : ""}>${date.getDate()}</button>`;
+      }).join("");
+    }
+
+    function applyEventPeriodDate(value) {
+      const next = parseIsoDate(value);
+      if (calendarTarget === "start") {
+        eventPeriodStart = next;
+        if (eventPeriodStart > eventPeriodEnd) eventPeriodEnd = new Date(eventPeriodStart);
+      } else {
+        eventPeriodEnd = next;
+        if (eventPeriodEnd < eventPeriodStart) eventPeriodStart = new Date(eventPeriodEnd);
+      }
+    }
+
+    function setupGraphControls() {
+      const select = document.getElementById("graphMetricSelect");
+      select.value = selectedGraphMetric;
+      select.addEventListener("change", event => {
+        selectedGraphMetric = event.target.value;
+        renderGraph();
+      });
+      setupGraphTooltip();
+    }
+
+    function setupGraphTooltip() {
+      const graph = document.getElementById("eventGraph");
+      ensureGraphTooltip();
+      graph.addEventListener("mousemove", event => {
+        const target = event.target instanceof Element
+          ? event.target.closest("[data-graph-tooltip]")
+          : null;
+        if (!target || !graph.contains(target)) {
+          hideGraphTooltip();
+          return;
+        }
+        showGraphTooltip(target, event);
+      });
+      graph.addEventListener("mouseleave", hideGraphTooltip);
+      graph.addEventListener("scroll", hideGraphTooltip, { passive: true });
+    }
+
+    function ensureGraphTooltip() {
+      let tooltip = document.getElementById("graphHoverTooltip");
+      if (tooltip) return tooltip;
+      tooltip = document.createElement("div");
+      tooltip.id = "graphHoverTooltip";
+      tooltip.className = "graph-hover-tooltip";
+      tooltip.setAttribute("role", "tooltip");
+      document.body.appendChild(tooltip);
+      return tooltip;
+    }
+
+    function showGraphTooltip(target, event) {
+      const tooltip = ensureGraphTooltip();
+      tooltip.replaceChildren(
+        tooltipLine("graph-tooltip-name", target.dataset.graphName),
+        tooltipLine("graph-tooltip-meta", `期間: ${target.dataset.graphPeriod}`),
+        tooltipLine("graph-tooltip-value", `${target.dataset.graphMetric}: ${target.dataset.graphValue}`)
+      );
+      positionGraphTooltip(tooltip, event.clientX, event.clientY);
+      tooltip.classList.add("is-visible");
+    }
+
+    function tooltipLine(className, text) {
+      const line = document.createElement("span");
+      line.className = className;
+      line.textContent = text || "";
+      return line;
+    }
+
+    function positionGraphTooltip(tooltip, x, y) {
+      const margin = 12;
+      const offset = 14;
+      const rect = tooltip.getBoundingClientRect();
+      let left = x + offset;
+      if (left + rect.width + margin > window.innerWidth) left = x - rect.width - offset;
+      let top = y - rect.height / 2;
+      top = Math.max(margin, Math.min(window.innerHeight - rect.height - margin, top));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function hideGraphTooltip() {
+      document.getElementById("graphHoverTooltip")?.classList.remove("is-visible");
+    }
+
+    function setupExcelFilters() {
+      const tableHead = document.querySelector("thead");
+
+      tableHead.addEventListener("click", event => {
+        const toggle = event.target.closest("[data-filter-toggle]");
+        if (toggle) {
+          const key = toggle.dataset.filterToggle;
+          const header = toggle.closest(".filter-header");
+          const shouldOpen = !header.classList.contains("is-open");
+          closeFilterMenus();
+          if (shouldOpen) {
+            renderFilterMenu(key);
+            header.classList.add("is-open");
+          }
+          return;
+        }
+
+        const sortButton = event.target.closest("[data-filter-sort]");
+        if (sortButton) {
+          eventFilterState.sortKey = sortButton.dataset.filterSort;
+          eventFilterState.sortDir = sortButton.dataset.sortDir;
+          syncFilterButtons();
+          renderEventViews();
+          return;
+        }
+
+        const clearButton = event.target.closest("[data-filter-clear]");
+        if (clearButton) {
+          const key = clearButton.dataset.filterClear;
+          eventFilterState.columns[key] = createColumnFilter(key);
+          renderFilterMenu(key);
+          syncFilterButtons();
+          renderEventViews();
+        }
+      });
+
+      tableHead.addEventListener("input", event => {
+        if (event.target.matches("[data-filter-search]")) {
+          const input = event.target;
+          const key = input.dataset.filterSearch;
+          const caret = input.selectionStart || input.value.length;
+          eventFilterState.columns[key].query = input.value.trim();
+          renderFilterMenu(key);
+          openFilterMenu(key);
+          const nextInput = document.querySelector(`[data-filter-search="${key}"]`);
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.setSelectionRange(caret, caret);
+          }
+          syncFilterButtons();
+          renderEventViews();
+          return;
+        }
+
+        if (event.target.matches("[data-filter-range]")) {
+          const input = event.target;
+          const key = input.dataset.filterRange;
+          const bound = input.dataset.rangeBound;
+          eventFilterState.columns[key][bound] = input.value.trim();
+          syncFilterButtons();
+          renderEventViews();
+        }
+      });
+
+      tableHead.addEventListener("change", event => {
+        if (!event.target.matches("[data-filter-value], [data-date-tree-value], [data-filter-select-all]")) return;
+        const input = event.target;
+        const key = input.dataset.filterValueKey || input.dataset.filterSelectAll;
+        if (input.matches("[data-filter-select-all]")) {
+          eventFilterState.columns[key].selected = input.checked ? null : [];
+        } else if (input.matches("[data-date-tree-value]")) {
+          const values = input.dataset.filterValues.split("|");
+          const allValues = getColumnValues(key);
+          const selected = eventFilterState.columns[key].selected === null
+            ? new Set(allValues)
+            : new Set(eventFilterState.columns[key].selected);
+          values.forEach(value => {
+            if (input.checked) selected.add(value);
+            else selected.delete(value);
+          });
+          eventFilterState.columns[key].selected = selected.size === allValues.length ? null : Array.from(selected);
+        } else {
+          const value = input.dataset.filterValue;
+          const values = getColumnValues(key);
+          const selected = eventFilterState.columns[key].selected === null
+            ? new Set(values)
+            : new Set(eventFilterState.columns[key].selected);
+          if (input.checked) selected.add(value);
+          else selected.delete(value);
+          eventFilterState.columns[key].selected = selected.size === values.length ? null : Array.from(selected);
+        }
+        renderFilterMenu(key);
+        openFilterMenu(key);
+        syncFilterButtons();
+        renderEventViews();
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest(".filter-header")) closeFilterMenus();
+      });
+    }
+
+    function renderEventViews() {
+      renderGraph();
+      renderEventTable();
+      renderTimeline();
+    }
+
+    function createMockEventRows() {
+      const templates = {
+        "クエスト": [
+          "曜日素材ドロップ増量", "高難度チャレンジ", "探索ボーナス", "イベントEX解放", "討伐ポイント2倍",
+          "育成応援クエスト", "復刻ストーリー", "ランキング予選", "協力バトル", "ミッションラッシュ",
+          "ログイン連動任務", "ストーリー後半戦", "ボスラッシュ", "初心者応援任務", "ギルド討伐戦"
+        ],
+        "ガチャ": [
+          "限定ステップアップ", "復刻ピックアップ", "新キャラ登場", "属性セレクト", "有償限定確定",
+          "フェス前夜祭", "水着復刻", "月末フェス", "装備ピックアップ", "推しキャラ再登場",
+          "周年カウントダウン", "コラボ記念", "週末限定", "SSR確定", "選べるピックアップ"
+        ],
+        "商品": [
+          "育成パック", "石増量セール", "月初スターター", "週末ブースター", "限定衣装セット",
+          "復帰者パック", "イベント応援箱", "高額チャージ特典", "デイリーお得便", "月末追い込み",
+          "コラボ記念商品", "素材詰め合わせ", "スタミナ補給", "VIP継続特典", "初心者限定商品"
+        ],
+        "広告": [
+          "イベント告知バナー", "復帰訴求ポップアップ", "新キャラティザー", "セール導線バナー", "ログイン面広告",
+          "ホーム大型バナー", "ミッション誘導広告", "ガチャ予告バナー", "商品訴求カルーセル", "周年カムバック広告",
+          "コラボ告知広告", "初心者導線バナー", "限定衣装ティザー", "月末追い込み広告", "レイド参加訴求"
+        ]
+      };
+      const categoryCycle = ["クエスト", "ガチャ", "商品", "広告"];
+      const totalPeriodDays = dayDiff(startDate, endDate) + 1;
+      const latestStartOffset = Math.max(1, totalPeriodDays - 12);
+      const rows = [];
+      for (let index = 0; index < 216; index++) {
+        const category = categoryCycle[index % categoryCycle.length];
+        const categoryIndex = Math.floor(index / categoryCycle.length) + 1;
+        const startOffset = (index * 11 + categoryIndex * 7) % latestStartOffset;
+        const duration = category === "広告" ? 5 + (index % 7) : category === "ガチャ" ? 4 + (index % 5) : category === "商品" ? 2 + (index % 5) : 3 + (index % 6);
+        const endOffset = Math.min(totalPeriodDays - 1, startOffset + duration);
+        const name = `${templates[category][(categoryIndex - 1) % templates[category].length]} ${String(categoryIndex).padStart(2, "0")}`;
+        const dmauRate = Number((0.085 + ((index * 7) % 29) / 100).toFixed(3));
+        const payerRate = Number((0.18 + ((index * 11) % 46) / 100).toFixed(3));
+
+        if (category === "クエスト") {
+          rows.push({
+            category,
+            name,
+            start: dateFromOffset(startOffset),
+            end: dateFromOffset(endOffset),
+            revenue: null,
+            stone: null,
+            clickRate: null,
+            dmauRate,
+            payerRate,
+            dmauClearRate: Number((0.09 + ((index * 5) % 18) / 100).toFixed(3)),
+            payerClearRate: Number((0.12 + ((index * 3) % 24) / 100).toFixed(3))
+          });
+          continue;
+        }
+
+        if (category === "広告") {
+          rows.push({
+            category,
+            name,
+            start: dateFromOffset(startOffset),
+            end: dateFromOffset(endOffset),
+            revenue: null,
+            stone: null,
+            clickRate: Number((0.035 + ((index * 17) % 105) / 1000).toFixed(3)),
+            dmauRate: null,
+            payerRate: null,
+            dmauClearRate: null,
+            payerClearRate: null
+          });
+          continue;
+        }
+
+        const isGacha = category === "ガチャ";
+        rows.push({
+          category,
+          name,
+          start: dateFromOffset(startOffset),
+          end: dateFromOffset(endOffset),
+          revenue: isGacha ? null : 2.1e6 + ((index * 37) % 420) * 10000,
+          stone: isGacha ? 1.6e6 + ((index * 19) % 360) * 10000 : null,
+          clickRate: Number((0.16 + ((index * 13) % 34) / 100).toFixed(3)),
+          dmauRate,
+          payerRate,
+          dmauClearRate: null,
+          payerClearRate: null
+        });
+      }
+      return rows;
+    }
+
+    function createInitialPeriodEventRows() {
+      const periodStart = "2026-03-20";
+      const periodEnd = "2026-04-18";
+      const templates = {
+        "クエスト": [
+          "春期素材周回", "レイド前哨戦", "高難度トライアル", "復帰者任務", "ギルド貢献ミッション",
+          "育成ブースト任務", "イベントEX演習", "ストーリー開放", "討伐ポイント増量", "ランキング追い込み"
+        ],
+        "ガチャ": [
+          "春フェス復刻ピックアップ", "新生活ステップアップ", "属性別セレクト", "有償限定確定", "装備強化ピックアップ",
+          "週末限定ピックアップ", "推しキャラ復刻", "新キャラ先行登場", "月末フェス予告", "周年後夜祭ガチャ"
+        ],
+        "商品": [
+          "新生活応援パック", "春フェス追い込みパック", "育成素材セット", "月末限定パック", "復帰者スターター",
+          "高額チャージ特典", "デイリーお得便", "イベント応援箱", "スタミナ補給セット", "限定衣装セット"
+        ],
+        "広告": [
+          "春フェス告知バナー", "新生活CPホーム広告", "復帰訴求ポップアップ", "ガチャ予告カルーセル", "商品導線バナー",
+          "レイド参加訴求", "月末追い込み広告", "初心者導線バナー", "新キャラティザー", "周年後夜祭告知"
+        ]
+      };
+      const categoryCycle = ["クエスト", "ガチャ", "商品", "広告"];
+      const totalDays = dayDiff(periodStart, periodEnd) + 1;
+      const rows = [];
+
+      for (let index = 0; index < 90; index++) {
+        const category = categoryCycle[index % categoryCycle.length];
+        const groupIndex = Math.floor(index / categoryCycle.length);
+        const startOffset = (index * 7 + groupIndex * 9 + (index % categoryCycle.length) * 2) % totalDays;
+        const duration = category === "広告" ? 2 + (index % 4) : category === "ガチャ" ? 3 + (index % 5) : category === "商品" ? 2 + (index % 3) : 3 + (index % 5);
+        const endOffset = Math.min(totalDays - 1, startOffset + duration);
+        const name = `${templates[category][groupIndex % templates[category].length]} 初期${String(groupIndex + 1).padStart(2, "0")}`;
+        const dmauRate = Number((0.11 + ((index * 7) % 24) / 100).toFixed(3));
+        const payerRate = Number((0.22 + ((index * 11) % 38) / 100).toFixed(3));
+
+        if (category === "クエスト") {
+          rows.push({
+            category,
+            name,
+            start: dateFromInitialOffset(periodStart, startOffset),
+            end: dateFromInitialOffset(periodStart, endOffset),
+            revenue: null,
+            stone: null,
+            clickRate: null,
+            dmauRate,
+            payerRate,
+            dmauClearRate: Number((0.10 + ((index * 5) % 22) / 100).toFixed(3)),
+            payerClearRate: Number((0.14 + ((index * 3) % 28) / 100).toFixed(3))
+          });
+          continue;
+        }
+
+        if (category === "広告") {
+          rows.push({
+            category,
+            name,
+            start: dateFromInitialOffset(periodStart, startOffset),
+            end: dateFromInitialOffset(periodStart, endOffset),
+            revenue: null,
+            stone: null,
+            clickRate: Number((0.045 + ((index * 17) % 92) / 1000).toFixed(3)),
+            dmauRate: null,
+            payerRate: null,
+            dmauClearRate: null,
+            payerClearRate: null
+          });
+          continue;
+        }
+
+        const isGacha = category === "ガチャ";
+        rows.push({
+          category,
+          name,
+          start: dateFromInitialOffset(periodStart, startOffset),
+          end: dateFromInitialOffset(periodStart, endOffset),
+          revenue: isGacha ? null : 3.2e6 + ((index * 41) % 520) * 10000,
+          stone: isGacha ? 2.4e6 + ((index * 23) % 430) * 10000 : null,
+          clickRate: Number((0.18 + ((index * 13) % 32) / 100).toFixed(3)),
+          dmauRate,
+          payerRate,
+          dmauClearRate: null,
+          payerClearRate: null
+        });
+      }
+
+      return rows;
+    }
+
+    function dateFromInitialOffset(base, offset) {
+      return formatIsoDate(addDays(parseIsoDate(base), offset));
+    }
+
+    function createColumnFilters() {
+      return Object.fromEntries(columnDefs.map(def => [def.key, createColumnFilter(def.key)]));
+    }
+
+    function createColumnFilter(key) {
+      const def = getColumnDef(key);
+      return def.type === "number"
+        ? { min: "", max: "" }
+        : def.type === "dateTree"
+          ? { selected: null }
+          : { query: "", selected: null };
+    }
+
+    function renderFilterMenus() {
+      columnDefs.forEach(def => renderFilterMenu(def.key));
+    }
+
+    function renderFilterMenu(key) {
+      const menu = document.querySelector(`[data-filter-menu="${key}"]`);
+      const def = getColumnDef(key);
+      const filter = eventFilterState.columns[key];
+      if (def.type === "number") {
+        menu.innerHTML = `
+          <div class="filter-sort-row">
+            <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="asc">昇順</button>
+            <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="desc">降順</button>
+          </div>
+          <div class="filter-range-row">
+            <input class="filter-range-input" data-filter-range="${key}" data-range-bound="min" type="number" inputmode="decimal" value="${escapeAttr(filter.min)}" placeholder="最小">
+            <input class="filter-range-input" data-filter-range="${key}" data-range-bound="max" type="number" inputmode="decimal" value="${escapeAttr(filter.max)}" placeholder="最大">
+          </div>
+          <div class="filter-range-note">範囲は ${def.rangeUnit} 単位で指定</div>
+          <button class="filter-clear-button" type="button" data-filter-clear="${key}">クリア</button>
+        `;
+        return;
+      }
+
+      if (def.type === "dateTree") {
+        const values = getColumnValues(key);
+        const allChecked = filter.selected === null || filter.selected.length === values.length;
+        menu.innerHTML = `
+          <div class="filter-sort-row">
+            <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="asc">昇順</button>
+            <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="desc">降順</button>
+          </div>
+          <label class="filter-check"><input type="checkbox" data-filter-select-all="${key}" ${allChecked ? "checked" : ""}>すべて</label>
+          <div class="filter-date-tree">${renderDateTree(key, values)}</div>
+          <button class="filter-clear-button" type="button" data-filter-clear="${key}">クリア</button>
+        `;
+        return;
+      }
+
+      const values = getColumnValues(key);
+      const normalizedQuery = normalizeText(filter.query);
+      const visibleValues = values.filter(value => !normalizedQuery || normalizeText(value).includes(normalizedQuery));
+      const allChecked = filter.selected === null || filter.selected.length === values.length;
+
+      menu.innerHTML = `
+        <div class="filter-sort-row">
+          <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="asc">昇順</button>
+          <button class="filter-sort-button" type="button" data-filter-sort="${key}" data-sort-dir="desc">降順</button>
+        </div>
+        <input class="filter-search" data-filter-search="${key}" type="search" value="${escapeAttr(filter.query)}" placeholder="検索">
+        <label class="filter-check"><input type="checkbox" data-filter-select-all="${key}" ${allChecked ? "checked" : ""}>すべて</label>
+        <div class="filter-values">
+          ${visibleValues.length ? visibleValues.map(value => `
+            <label class="filter-check">
+              <input type="checkbox" data-filter-value-key="${key}" data-filter-value="${escapeAttr(value)}" ${isValueChecked(key, value) ? "checked" : ""}>
+              <span>${escapeHtml(value)}</span>
+            </label>
+          `).join("") : `<div class="filter-empty">該当なし</div>`}
+        </div>
+        <button class="filter-clear-button" type="button" data-filter-clear="${key}">クリア</button>
+      `;
+    }
+
+    function openFilterMenu(key) {
+      closeFilterMenus();
+      document.querySelector(`[data-filter-header="${key}"]`)?.classList.add("is-open");
+    }
+
+    function closeFilterMenus() {
+      document.querySelectorAll("[data-filter-header]").forEach(header => header.classList.remove("is-open"));
+    }
+
+    function syncFilterButtons() {
+      document.querySelectorAll("[data-filter-toggle]").forEach(button => {
+        const key = button.dataset.filterToggle;
+        button.classList.toggle("is-asc", eventFilterState.sortKey === key && eventFilterState.sortDir === "asc");
+        button.classList.toggle("is-desc", eventFilterState.sortKey === key && eventFilterState.sortDir === "desc");
+        button.classList.toggle("is-filtered", isColumnFilterActive(key));
+      });
+    }
+
+    function isColumnFilterActive(key) {
+      const filter = eventFilterState.columns[key];
+      const def = getColumnDef(key);
+      return def.type === "number"
+        ? Boolean(filter.min || filter.max)
+        : def.type === "dateTree"
+          ? filter.selected !== null
+          : Boolean(filter.query) || filter.selected !== null;
+    }
+
+    function getColumnDef(key) {
+      return columnDefs.find(def => def.key === key);
+    }
+
+    function getColumnDisplay(row, key) {
+      return String(getColumnDef(key).value(row));
+    }
+
+    function getColumnFilterValue(row, key) {
+      const def = getColumnDef(key);
+      return String(def.filterValue ? def.filterValue(row) : def.value(row));
+    }
+
+    function getColumnSortValue(row, key) {
+      const def = getColumnDef(key);
+      return def.sortValue ? def.sortValue(row) : row[key];
+    }
+
+    function getColumnRangeValue(row, key) {
+      const def = getColumnDef(key);
+      return def.rangeValue ? def.rangeValue(row) : row[key];
+    }
+
+    function getColumnValues(key) {
+      return Array.from(new Set(eventRows.map(row => getColumnFilterValue(row, key))))
+        .sort((a, b) => a.localeCompare(b, "ja-JP", { numeric: true }));
+    }
+
+    function isValueChecked(key, value) {
+      const selected = eventFilterState.columns[key].selected;
+      return selected === null || selected.includes(value);
+    }
+
+    function renderDateTree(key, values) {
+      const groups = new Map();
+      values.forEach(value => {
+        const [year, month, day] = value.split("-");
+        if (!groups.has(year)) groups.set(year, new Map());
+        const months = groups.get(year);
+        if (!months.has(month)) months.set(month, []);
+        months.get(month).push(value);
+      });
+
+      let html = "";
+      groups.forEach((months, year) => {
+        const yearValues = Array.from(months.values()).flat();
+        html += dateTreeCheck(key, `${year}年`, yearValues, "is-year");
+        months.forEach((monthValues, month) => {
+          html += dateTreeCheck(key, `${Number(month)}月`, monthValues, "is-month");
+          monthValues.forEach(value => {
+            const day = value.split("-")[2];
+            html += dateTreeCheck(key, `${Number(day)}日`, [value], "is-day");
+          });
+        });
+      });
+      return html || `<div class="filter-empty">該当なし</div>`;
+    }
+
+    function dateTreeCheck(key, label, values, className) {
+      const checked = values.every(value => isValueChecked(key, value));
+      return `
+        <label class="filter-check ${className}">
+          <input type="checkbox" data-date-tree-value data-filter-value-key="${key}" data-filter-values="${escapeAttr(values.join("|"))}" ${checked ? "checked" : ""}>
+          <span>${escapeHtml(label)}</span>
+        </label>
+      `;
+    }
+
+    function renderEventTable() {
+      const rows = filteredEventRows().sort(compareEventRows(eventFilterState.sortKey, eventFilterState.sortDir));
+      document.getElementById("eventTableBody").innerHTML = rows.length ? rows.map(row => `
+        <tr>
+          <td><span class="category-chip ${categoryClass(row.category)}">${row.category}</span></td>
+          <td>${row.name}</td>
+          <td>${formatDate(row.start)}</td>
+          <td>${formatDate(row.end)}</td>
+          <td>${formatOptionalMoney(row.revenue)}</td>
+          <td>${formatOptionalCount(row.stone)}</td>
+          <td>${formatOptionalPercent(row.clickRate, 1)}</td>
+          <td>${formatOptionalPercent(row.dmauRate, 1)}</td>
+          <td>${formatOptionalPercent(row.payerRate, 1)}</td>
+          <td>${formatOptionalPercent(row.dmauClearRate, 1)}</td>
+          <td>${formatOptionalPercent(row.payerClearRate, 1)}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="11">条件に一致するイベントはありません。</td></tr>`;
+    }
+
+    function renderGraph() {
+      const metric = getChartMetric(selectedGraphMetric);
+      const rows = filteredEventRows()
+        .sort(compareEventRows(eventFilterState.sortKey, eventFilterState.sortDir))
+        .map(row => ({ row, value: metric.value(row) }))
+        .filter(item => Number.isFinite(item.value) && item.value !== 0);
+      const graph = document.getElementById("eventGraph");
+      if (!rows.length) {
+        graph.innerHTML = `<div class="graph-empty">表示できる値がありません。</div>`;
+        return;
+      }
+
+      const maxValue = Math.max(...rows.map(item => item.value));
+      const barStep = 28;
+      const barWidth = 16;
+      const plotWidth = rows.length * barStep;
+      const left = 64;
+      const right = 16;
+      const top = 16;
+      const plotHeight = 330;
+      const labelHeight = 132;
+      const plotBottom = top + plotHeight;
+      const svgWidth = left + plotWidth + right;
+      const svgHeight = plotBottom + labelHeight + 8;
+      const chartScale = buildChartScale(maxValue, metric);
+      graph.innerHTML = `
+        <svg class="bar-chart" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" role="img" aria-label="${escapeAttr(metric.label)}棒グラフ">
+          ${chartScale.ticks.map(tick => renderSvgTick(tick, left, left + plotWidth, top, plotHeight)).join("")}
+          <line class="chart-axis" x1="${left}" y1="${top}" x2="${left}" y2="${plotBottom}"></line>
+          <line class="chart-axis" x1="${left}" y1="${plotBottom}" x2="${left + plotWidth}" y2="${plotBottom}"></line>
+          ${rows.map((item, index) => renderSvgBar(item, index, metric, chartScale.max, { left, top, plotHeight, plotBottom, barStep, barWidth })).join("")}
+        </svg>
+      `;
+    }
+
+    function renderSvgTick(tick, left, right, top, plotHeight) {
+      const y = top + plotHeight - (tick.percent / 100) * plotHeight;
+      return `
+        <line class="chart-grid-line" x1="${left}" y1="${y}" x2="${right}" y2="${y}"></line>
+        <text class="chart-tick-label" x="${left - 10}" y="${y + 4}" text-anchor="end">${escapeHtml(tick.label)}</text>
+      `;
+    }
+
+    function renderSvgBar(item, index, metric, scaleMax, layout) {
+      const height = Math.max(4, (item.value / scaleMax) * layout.plotHeight);
+      const x = layout.left + index * layout.barStep + (layout.barStep - layout.barWidth) / 2;
+      const center = x + layout.barWidth / 2;
+      const y = layout.plotBottom - height;
+      const period = `${formatDate(item.row.start)} - ${formatDate(item.row.end)}`;
+      const metricValue = metric.format(item.value);
+      const label = `${item.row.name} / ${period} / ${metric.label}: ${metricValue}`;
+      return `
+        <g class="chart-bar-group" data-graph-tooltip="true" data-graph-name="${escapeAttr(item.row.name)}" data-graph-period="${escapeAttr(period)}" data-graph-metric="${escapeAttr(metric.label)}" data-graph-value="${escapeAttr(metricValue)}" aria-label="${escapeAttr(label)}">
+          <title>${escapeHtml(label)}</title>
+          <rect class="chart-bar" x="${x}" y="${y}" width="${layout.barWidth}" height="${height}"></rect>
+          <text class="svg-bar-label" text-anchor="middle">
+            ${renderVerticalLabel(item.row.name, center, layout.plotBottom + 12)}
+          </text>
+        </g>
+      `;
+    }
+
+    function renderVerticalLabel(value, x, y) {
+      const maxChars = 13;
+      const chars = Array.from(value);
+      const visibleChars = chars.length > maxChars
+        ? chars.slice(0, maxChars - 1).concat("…")
+        : chars;
+      return visibleChars
+        .map((char, index) => `<tspan x="${x}" y="${y + index * 9.5}">${escapeHtml(char)}</tspan>`)
+        .join("");
+    }
+
+    function getChartMetric(key) {
+      return chartMetrics.find(metric => metric.key === key) || chartMetrics[0];
+    }
+
+    function buildChartScale(maxValue, metric) {
+      const step = getAxisStep(metric);
+      const scaleMax = Math.max(step, Math.ceil(maxValue / step) * step);
+      const ticks = [];
+      for (let value = 0; value <= scaleMax + step / 2; value += step) {
+        ticks.push({
+          percent: (value / scaleMax) * 100,
+          label: formatAxisTick(value, metric)
+        });
+      }
+      return { max: scaleMax, ticks };
+    }
+
+    function getAxisStep(metric) {
+      if (metric.key === "revenue" || metric.key === "stone") return 5000000;
+      return 0.1;
+    }
+
+    function formatAxisTick(value, metric) {
+      if (value === 0) return metric.key.includes("Rate") ? "0%" : "0";
+      if (metric.key === "revenue") return formatMoneyShort(value);
+      if (metric.key === "stone") return formatCountShort(value);
+      return formatPercent(value, 0);
+    }
+
+    function renderTimeline() {
+      const period = selectedPeriodRange();
+      const rows = filteredEventRows()
+        .filter(row => isEventInPeriod(row, period.startDate, period.endDate))
+        .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+      const labels = buildDayLabels(period.start, period.end);
+      const timelineGrid = `grid-template-columns:120px repeat(${labels.length},minmax(38px,1fr))`;
+      let html = `<div class="axis" style="${timelineGrid}"><div class="label">分類 / 指定期間</div>${labels.map(day => `<div>${day}</div>`).join("")}</div>`;
+      let lanesHeight = 0;
+      categories.forEach(category => {
+        const categoryRows = rows.filter(row => row.category === category.value);
+        const laneHeight = Math.max(106, 56 + getTimelineStackDepth(categoryRows, period) * 34);
+        lanesHeight += laneHeight;
+        html += `<div class="lane" style="--lane-height:${laneHeight}px;${timelineGrid}"><div class="lane-name">${category.label}</div>${labels.map((_, index) => `<div class="cell ${isWeekendByOffset(index, period.start) ? "weekend" : ""}"></div>`).join("")}<div class="event-layer">${renderEvents(categoryRows, period)}</div></div>`;
+      });
+      const timeline = document.getElementById("timeline");
+      timeline.dataset.periodStart = period.start;
+      timeline.dataset.periodEnd = period.end;
+      timeline.innerHTML = html;
+      const timelineWrap = document.querySelector(".timeline-wrap");
+      if (timelineWrap) timelineWrap.scrollLeft = 0;
+      syncTimelineHeight(lanesHeight);
+    }
+
+    function syncTimelineHeight(lanesHeight) {
+      const axisHeight = 34;
+      const panelChromeHeight = 64;
+      const wrapHeight = axisHeight + lanesHeight;
+      document.querySelector(".timeline-wrap")?.style.setProperty("--timeline-wrap-height", `${wrapHeight}px`);
+      document.querySelector(".timeline-panel")?.style.setProperty("--timeline-panel-height", `${wrapHeight + panelChromeHeight}px`);
+    }
+
+    function getTimelineStackDepth(rows, period = selectedPeriodRange()) {
+      const stackEnds = [];
+      rows
+        .slice()
+        .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+        .forEach(row => {
+          const start = Math.max(0, dayDiff(period.start, row.start));
+          const end = Math.min(dayDiff(period.start, period.end), dayDiff(period.start, row.end));
+          let stackRow = 0;
+          while (stackEnds[stackRow] != null && start <= stackEnds[stackRow]) stackRow++;
+          stackEnds[stackRow] = end;
+        });
+      return Math.max(1, stackEnds.length);
+    }
+
+    function renderEvents(rows, period) {
+      const totalDays = dayDiff(period.start, period.end) + 1;
+      const per = 100 / totalDays;
+      const stackEnds = [];
+      return rows.map(row => {
+        const start = Math.max(0, dayDiff(period.start, row.start));
+        const end = Math.min(totalDays - 1, dayDiff(period.start, row.end));
+        if (end < 0 || start >= totalDays) return "";
+        let stackRow = 0;
+        while (stackEnds[stackRow] != null && start <= stackEnds[stackRow]) stackRow++;
+        stackEnds[stackRow] = end;
+        const left = start * per;
+        const width = (end - start + 1) * per;
+        const top = 10 + stackRow * 34;
+        const className = categoryClass(row.category);
+        return `<div class="event ${className}" style="left:${left}%;width:${width}%;top:${top}px" title="${row.name} ${shortDate(row.start)} - ${shortDate(row.end)}"><span>${row.name}</span><small>${shortDate(row.start)} - ${shortDate(row.end)}</small></div>`;
+      }).join("");
+    }
+
+    function filteredEventRows() {
+      return eventRows.filter(row => {
+        if (!isEventInSelectedPeriod(row)) return false;
+        return columnDefs.every(def => {
+          const filter = eventFilterState.columns[def.key];
+          if (def.type === "number") {
+            const value = getColumnRangeValue(row, def.key);
+            const min = filter.min === "" ? null : Number(filter.min);
+            const max = filter.max === "" ? null : Number(filter.max);
+            if ((min !== null || max !== null) && value == null) return false;
+            if (min !== null && value < min) return false;
+            if (max !== null && value > max) return false;
+            return true;
+          }
+          const value = getColumnFilterValue(row, def.key);
+          if (def.type === "dateTree") {
+            return filter.selected === null || filter.selected.includes(value);
+          }
+          const matchesQuery = !filter.query || normalizeText(value).includes(normalizeText(filter.query));
+          const matchesSelected = filter.selected === null || filter.selected.includes(value);
+          return matchesQuery && matchesSelected;
+        });
+      });
+    }
+
+    function isEventInSelectedPeriod(row) {
+      const period = selectedPeriodRange();
+      return isEventInPeriod(row, period.startDate, period.endDate);
+    }
+
+    function selectedPeriodRange() {
+      return {
+        start: formatIsoDate(eventPeriodStart),
+        end: formatIsoDate(eventPeriodEnd),
+        startDate: eventPeriodStart,
+        endDate: eventPeriodEnd
+      };
+    }
+
+    function isEventInPeriod(row, periodStart, periodEnd) {
+      const rowStart = parseIsoDate(row.start);
+      const rowEnd = parseIsoDate(row.end);
+      return rowEnd >= periodStart && rowStart <= periodEnd;
+    }
+
+    function compareEventRows(sortKey, sortDir) {
+      const direction = sortDir === "desc" ? -1 : 1;
+      return (a, b) => {
+        const aValue = normalizeEventSortValue(getColumnSortValue(a, sortKey), sortKey);
+        const bValue = normalizeEventSortValue(getColumnSortValue(b, sortKey), sortKey);
+        const aEmpty = aValue == null;
+        const bEmpty = bValue == null;
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty) return 1;
+        if (bEmpty) return -1;
+        if (aValue < bValue) return -1 * direction;
+        if (aValue > bValue) return 1 * direction;
+        return 0;
+      };
+    }
+
+    function normalizeEventSortValue(value, key) {
+      if (value == null) return null;
+      if (typeof value === "number") return value;
+      if (key === "start" || key === "end") return Date.parse(value);
+      if (typeof value === "string") return value;
+      return value;
+    }
+
+    function categoryClass(category) {
+      return { "クエスト": "quest", "ガチャ": "gacha", "商品": "product", "広告": "ad" }[category] || "";
+    }
+
+    function buildDayLabels(start, end) {
+      const startDateObj = new Date(`${start}T00:00:00`);
+      const endDateObj = new Date(`${end}T00:00:00`);
+      const labels = [];
+      for (let date = new Date(startDateObj); date <= endDateObj; date.setDate(date.getDate() + 1)) {
+        labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
+      }
+      return labels;
+    }
+
+    function dayDiff(base, target) {
+      return Math.round((Date.parse(target) - Date.parse(base)) / 86400000);
+    }
+
+    function dateFromOffset(offset) {
+      const date = new Date(`${startDate}T00:00:00`);
+      date.setDate(date.getDate() + offset);
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function parseIsoDate(value) {
+      const [year, month, date] = value.split("-").map(Number);
+      return new Date(year, month - 1, date);
+    }
+
+    function formatIsoDate(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function formatFullDate(date) {
+      return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
+    }
+
+    function addMonths(date, months) {
+      return new Date(date.getFullYear(), date.getMonth() + months, 1);
+    }
+
+    function addDays(date, daysToAdd) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + daysToAdd);
+      return next;
+    }
+
+    function sameDate(a, b) {
+      return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+    }
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function shortDate(value) {
+      const date = new Date(`${value}T00:00:00`);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function formatDate(value) {
+      const date = new Date(`${value}T00:00:00`);
+      return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
+    }
+
+    function formatYearMonth(value) {
+      const date = new Date(`${value}T00:00:00`);
+      return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}`;
+    }
+
+    function isWeekendByOffset(offset, base = startDate) {
+      const date = new Date(`${base}T00:00:00`);
+      date.setDate(date.getDate() + offset);
+      const day = date.getDay();
+      return day === 0 || day === 6;
+    }
+
+    function formatOptionalMoney(value) {
+      return value == null ? "-" : formatMoneyShort(value);
+    }
+
+    function formatOptionalCount(value) {
+      return value == null ? "-" : formatCountShort(value);
+    }
+
+    function formatOptionalPercent(value, digits = 0) {
+      return value == null ? "-" : formatPercent(value, digits);
+    }
+
+    function formatPercent(value, digits = 0) {
+      return `${(value * 100).toFixed(digits)}%`;
+    }
+
+    function formatMoneyShort(value) {
+      return `¥${formatMan(value)}万`;
+    }
+
+    function formatCountShort(value) {
+      return `${formatMan(value)}万`;
+    }
+
+    function formatMan(value) {
+      const man = value / 10000;
+      return man.toLocaleString("ja-JP", { maximumFractionDigits: man >= 100 ? 0 : 1 });
+    }
+
+    function normalizeText(value) {
+      return String(value).toLowerCase();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+  </script>
+</body>
+</html>

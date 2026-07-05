@@ -1,0 +1,88 @@
+.dashboard-layout {
+  --font-sans: "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif;
+  --font-number: var(--font-sans);
+}
+
+.app.dashboard-layout,
+.app-layout.dashboard-layout,
+.dashboard-shell.dashboard-layout {
+  --dashboard-nav-width: 230px;
+  display: grid;
+  grid-template-columns: var(--dashboard-nav-width) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.dashboard-layout > .dashboard-nav.side {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex: 0 0 var(--dashboard-nav-width) !important;
+  min-height: 100vh;
+  min-width: var(--dashboard-nav-width) !important;
+  width: var(--dashboard-nav-width) !important;
+  max-width: var(--dashboard-nav-width) !important;
+  padding: 28px 18px !important;
+  background: rgba(255, 255, 255, 0.48);
+  backdrop-filter: blur(18px);
+  border-right: 1px solid rgba(22, 32, 51, 0.08);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--font-sans);
+}
+
+.dashboard-layout > .dashboard-nav.side h2 {
+  margin: 0 0 16px;
+  color: var(--ink, #162033);
+  font: 700 22px/1.25 inherit;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-layout > .dashboard-nav.side .nav {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-layout > .dashboard-nav.side .nav a {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 45px !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+  color: var(--ink, #162033);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(22, 32, 51, 0.08);
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+  font-weight: 700 !important;
+  font-family: inherit;
+}
+
+.dashboard-layout > .dashboard-nav.side .nav a.on {
+  background: var(--nav, #1d2d56);
+  border-color: var(--nav, #1d2d56);
+  color: #fff;
+}
+
+@media (max-width: 860px) {
+  .app.dashboard-layout,
+  .app-layout.dashboard-layout,
+  .dashboard-shell.dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-layout > .dashboard-nav.side {
+    position: static;
+    min-height: auto;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto;
+    padding: 16px 12px !important;
+    border-right: 0;
+    border-bottom: 1px solid rgba(22, 32, 51, 0.08);
+  }
+}
